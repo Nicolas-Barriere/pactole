@@ -1,0 +1,18 @@
+# Dependencies
+/deps/
+/_build/
+
+# Generated on crash
+erl_crash.dump
+
+# Mix
+/.fetch
+mix.lock
+
+# Dialyzer
+/priv/plts/
+
+# Editor
+*.swp
+*.swo
+*~
