@@ -8,7 +8,14 @@ defmodule MoulaxWeb.Router do
   scope "/api/v1", MoulaxWeb do
     pipe_through :api
 
-    resources "/accounts", AccountController, except: [:new, :edit]
+    resources "/accounts", AccountController, except: [:new, :edit] do
+      resources "/transactions", TransactionController, only: [:index, :create]
+    end
+
+    get "/transactions", TransactionController, :index
+    patch "/transactions/bulk-categorize", TransactionController, :bulk_categorize
+    resources "/transactions", TransactionController, only: [:show, :update, :delete]
+
     resources "/categorization-rules", CategorizationRuleController, except: [:new, :edit]
   end
 end
