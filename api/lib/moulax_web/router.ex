@@ -9,5 +9,6 @@ defmodule MoulaxWeb.Router do
     pipe_through :api
 
     resources "/accounts", AccountController, except: [:new, :edit]
+    resources "/categorization-rules", CategorizationRuleController, except: [:new, :edit]
   end
 end
