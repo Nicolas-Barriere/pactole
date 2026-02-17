@@ -7,5 +7,7 @@ defmodule MoulaxWeb.Router do
 
   scope "/api/v1", MoulaxWeb do
     pipe_through :api
+
+    resources "/accounts", AccountController, except: [:new, :edit]
   end
 end
