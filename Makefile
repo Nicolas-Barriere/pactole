@@ -14,7 +14,7 @@ setup: ## Build and start all services for the first time
 	@echo "✓ Moulax is starting up!"
 	@echo "  Frontend:  http://localhost:3000"
 	@echo "  Backend:   http://localhost:4000"
-	@echo "  Database:  localhost:5432"
+  @echo "  Database:  localhost:$${DB_PORT:-5434}"
 	@echo ""
 	@echo "Run 'make logs' to follow the logs."
 
