@@ -34,6 +34,11 @@ defmodule Moulax.ParsersTest do
                Parsers.detect_parser(fixture("revolut_sample.csv"))
     end
 
+    test "detects Revolut parser for French-locale export" do
+      assert {:ok, Moulax.Parsers.Revolut} =
+               Parsers.detect_parser(fixture("revolut_fr_valid.csv"))
+    end
+
     test "detects Caisse d'Épargne parser" do
       assert {:ok, Moulax.Parsers.CaisseDepargne} =
                Parsers.detect_parser(fixture("ce_valid.csv"))

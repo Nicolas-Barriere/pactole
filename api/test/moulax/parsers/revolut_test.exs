@@ -13,6 +13,10 @@ defmodule Moulax.Parsers.RevolutTest do
       assert Revolut.detect?(fixture("revolut_valid.csv"))
     end
 
+    test "returns true for French-locale Revolut CSV" do
+      assert Revolut.detect?(fixture("revolut_fr_valid.csv"))
+    end
+
     test "returns false for Boursorama CSV" do
       refute Revolut.detect?(fixture("boursorama_valid.csv"))
     end
@@ -124,6 +128,45 @@ defmodule Moulax.Parsers.RevolutTest do
       content = fixture("revolut_valid.csv") |> String.replace("\n", "\r\n")
       assert {:ok, transactions} = Revolut.parse(content)
       assert length(transactions) == 4
+    end
+  end
+
+  describe "parse/1 with French-locale export" do
+    test "parses a French-locale Revolut CSV" do
+      assert {:ok, transactions} = Revolut.parse(fixture("revolut_fr_valid.csv"))
+      assert length(transactions) == 5
+
+      [first | _] = transactions
+      assert first.date == ~D[2025-06-19]
+      assert first.label == "Recharge via *5935"
+      assert first.amount == Decimal.new("330.00")
+      assert first.currency == "EUR"
+    end
+
+    test "handles TERMINÉ as completed state" do
+      assert {:ok, transactions} = Revolut.parse(fixture("revolut_fr_valid.csv"))
+
+      exchange = Enum.find(transactions, &(&1.label == "Change en GBP"))
+      assert exchange.amount == Decimal.new("-339.63")
+    end
+
+    test "skips non-TERMINÉ rows in French export" do
+      csv =
+        "Type,Produit,Date de début,Date de fin,Description,Montant,Frais,Devise,État,Solde\n" <>
+          "Ajout de fonds,Valeur actuelle,2025-06-19 15:51:42,2025-06-19 15:52:30,Recharge,330.00,0.00,EUR,TERMINÉ,330.00\n" <>
+          "Paiement,Valeur actuelle,2025-06-20 10:00:00,,Restaurant,-25.00,0.00,EUR,EN ATTENTE,305.00\n"
+
+      assert {:ok, [txn]} = Revolut.parse(csv)
+      assert txn.label == "Recharge"
+    end
+
+    test "returns error for missing columns in French export" do
+      csv = "Type,Produit,Description,Montant\nAjout,Valeur,Recharge,10.00\n"
+
+      assert {:error, [%Moulax.Parsers.ParseError{row: 0, message: message}]} =
+               Revolut.parse(csv)
+
+      assert message =~ "missing required columns"
     end
   end
 end

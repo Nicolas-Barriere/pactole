@@ -1,0 +1,6 @@
+Type,Produit,Date de début,Date de fin,Description,Montant,Frais,Devise,État,Solde
+Ajout de fonds,Valeur actuelle,2025-06-19 15:51:42,2025-06-19 15:52:30,Recharge via *5935,330.00,0.00,EUR,TERMINÉ,330.00
+Ajout de fonds,Valeur actuelle,2025-06-19 15:53:53,2025-06-19 15:53:56,Recharge via *5935,10.00,0.00,EUR,TERMINÉ,340.00
+Changes,Valeur actuelle,2025-06-19 15:54:19,2025-06-19 15:54:19,Change en GBP,-339.63,0.00,EUR,TERMINÉ,0.37
+Ajout de fonds,Valeur actuelle,2025-06-19 21:32:41,2025-06-19 21:33:16,Recharge via *5935,10.00,0.00,EUR,TERMINÉ,10.37
+Changes,Valeur actuelle,2025-06-19 21:34:14,2025-06-19 21:34:14,Change en GBP,-2.36,0.00,EUR,TERMINÉ,8.01
