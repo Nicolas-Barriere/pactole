@@ -8,6 +8,7 @@ defmodule Moulax.Parsers do
 
   @parsers [
     Moulax.Parsers.Boursorama,
+    Moulax.Parsers.CaisseDepargne,
     Moulax.Parsers.Revolut
   ]
 

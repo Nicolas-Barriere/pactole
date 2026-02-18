@@ -22,6 +22,11 @@ defmodule Moulax.ParsersTest do
                Parsers.detect_parser(fixture("revolut_sample.csv"))
     end
 
+    test "detects Caisse d'Épargne parser" do
+      assert {:ok, Moulax.Parsers.CaisseDepargne} =
+               Parsers.detect_parser(fixture("ce_valid.csv"))
+    end
+
     test "returns :error for empty content" do
       assert :error = Parsers.detect_parser("")
     end
