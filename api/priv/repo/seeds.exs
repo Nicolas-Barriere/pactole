@@ -15,15 +15,15 @@ import Ecto.Query
 
 # Default categories for V1 (see V1_SPEC.md and gh issue #4)
 default_categories = [
-  %{name: "Alimentation", color: "#22c55e"},
-  %{name: "Transport", color: "#3b82f6"},
-  %{name: "Logement", color: "#8b5cf6"},
-  %{name: "Loisirs", color: "#ec4899"},
-  %{name: "Santé", color: "#ef4444"},
-  %{name: "Abonnements", color: "#f59e0b"},
-  %{name: "Revenus", color: "#10b981"},
-  %{name: "Épargne", color: "#06b6d4"},
-  %{name: "Autres", color: "#6b7280"}
+  %{name: "Alimentation", color: "#4CAF50"},
+  %{name: "Transport", color: "#2196F3"},
+  %{name: "Logement", color: "#FF9800"},
+  %{name: "Loisirs", color: "#9C27B0"},
+  %{name: "Santé", color: "#F44336"},
+  %{name: "Abonnements", color: "#607D8B"},
+  %{name: "Revenus", color: "#8BC34A"},
+  %{name: "Épargne", color: "#00BCD4"},
+  %{name: "Autres", color: "#795548"}
 ]
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
