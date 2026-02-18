@@ -63,6 +63,11 @@ export interface CategorizationRule {
 
 export type ImportStatus = "pending" | "processing" | "completed" | "failed";
 
+export interface ImportError {
+  row: number;
+  message: string;
+}
+
 export interface Import {
   id: string;
   account_id: string;
@@ -72,7 +77,7 @@ export interface Import {
   rows_skipped: number;
   rows_errored: number;
   status: ImportStatus;
-  error_details: Record<string, unknown> | null;
+  error_details: ImportError[];
   inserted_at: string;
   updated_at: string;
 }
