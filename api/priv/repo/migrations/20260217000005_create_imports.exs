@@ -16,7 +16,7 @@ defmodule Moulax.Repo.Migrations.CreateImports do
       add :rows_skipped, :integer, default: 0
       add :rows_errored, :integer, default: 0
       add :status, :import_status, null: false, default: "pending"
-      add :error_details, :map
+      add :error_details, {:array, :map}, default: []
 
       timestamps()
     end

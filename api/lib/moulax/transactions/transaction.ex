@@ -52,6 +52,9 @@ defmodule Moulax.Transactions.Transaction do
     |> validate_inclusion(:source, ["csv_import", "manual"])
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:category_id)
+    |> unique_constraint([:account_id, :date, :amount, :original_label],
+      name: :transactions_account_date_amount_original_label_index
+    )
     |> put_currency_default()
   end
 
