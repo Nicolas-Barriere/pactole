@@ -20,9 +20,14 @@ defmodule Moulax.Parsers do
   """
   @spec detect_parser(binary()) :: {:ok, module()} | :error
   def detect_parser(content) when is_binary(content) do
+    content = strip_bom(content)
+
     case Enum.find(@parsers, & &1.detect?(content)) do
       nil -> :error
       parser -> {:ok, parser}
     end
   end
+
+  defp strip_bom("\uFEFF" <> rest), do: rest
+  defp strip_bom(content), do: content
 end

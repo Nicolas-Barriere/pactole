@@ -1,0 +1,14 @@
+dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance
+2026-01-27;2026-01-27;"TfL | CARTE 25/01/26 TFL TRAVEL CH CB*5935";"Agences de voyages";"Voyages & Transports";"tfl agence de voyage ch";-3,23;;00040641639;BoursoBank;280.71
+2026-01-26;2026-01-26;"TfL | CARTE 22/01/26 TFL TRAVEL CH CB*5935";"Agences de voyages";"Voyages & Transports";"tfl agence de voyage ch";-8,05;;00040641639;BoursoBank;283.94
+2026-01-20;2026-01-20;"TfL | CARTE 17/01/26 TFL TRAVEL CH CB*5935";"Agences de voyages";"Voyages & Transports";"tfl agence de voyage ch";-2,02;;00040641639;BoursoBank;291.99
+2026-01-19;2026-01-19;"YouTube | CARTE 15/01/26 Google YouTube Su CB*5935";"Multimedia à domicile (TV, internet, téléphonie…)";"Abonnements & téléphonie";google;-2,31;;00040641639;BoursoBank;294.01
+2026-01-19;2026-01-18;"Vir Cheh | VIR Cheh";"Virements reçus";"Virements reçus";"virement cheh";1,00;;00040641639;BoursoBank;296.32
+2026-01-19;2026-01-19;"Vir Mdrrrrr | VIR MDRRRRR";"Virements émis";"Virements émis";"virement mdrrrrr";-1,00;;00040641639;BoursoBank;294.01
+2026-01-16;2026-01-16;"TfL | CARTE 13/01/26 TFL TRAVEL CH CB*5935";"Agences de voyages";"Voyages & Transports";"tfl agence de voyage ch";-3,35;;00040641639;BoursoBank;296.32
+2026-01-09;2026-01-09;"Argos | CARTE 07/01/26 Argos CB*5935";"Animaux domestiques";"Vie quotidienne";argos;-69,41;;00040641639;BoursoBank;299.67
+2026-01-07;2026-01-07;"SNCF | CARTE 05/01/26 SNCF-VOYAGEURS CB*5935";"Transports longue distance (avions, trains…)";"Voyages & Transports";sncf;-236,00;;00040641639;BoursoBank;369.08
+2026-01-07;2026-01-07;"SNCF | CARTE 06/01/26 SNCF-VOYAGEURS CB*5935";"Transports longue distance (avions, trains…)";"Voyages & Transports";sncf;-126,00;;00040641639;BoursoBank;369.08
+2026-01-07;2026-01-07;"Remise Chèque N.7239954 | REM CHQ N. 7239954";"Dépôts (cartes/chèques/espèces)";"Dépôts (cartes/chèques/espèces)";"remise cheque n 7239954";40,00;;00040641639;BoursoBank;369.08
+2026-01-02;2026-01-02;"OVHcloud | CARTE 01/01/26 OVH SAS CB*5935";"Electronique et informatique";"Vie quotidienne";ovh;-11,04;;00040641639;BoursoBank;691.08
+2026-01-02;2026-01-02;"Tisséo | CARTE 30/12/25 Wk7IHOxNEqJJÑtiss CB*5935";"Non catégorisé";"Non catégorisé";Wk7IHOxNEqJJÑtisseo.frÑVC;-1,80;;00040641639;BoursoBank;691.08

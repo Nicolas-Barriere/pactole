@@ -130,6 +130,42 @@ defmodule Moulax.Parsers.BoursoramaTest do
       assert {:ok, [txn]} = Boursorama.parse(latin1)
       assert txn.original_label =~ "CAF"
     end
+
+    test "parses a real BoursoBank export" do
+      assert {:ok, transactions} = Boursorama.parse(fixture("boursobank_real_export.csv"))
+      assert length(transactions) == 13
+
+      first = List.first(transactions)
+      assert first.date == ~D[2026-01-27]
+      assert first.original_label == "TfL | CARTE 25/01/26 TFL TRAVEL CH CB*5935"
+      assert first.label == "TfL"
+      assert first.amount == Decimal.new("-3.23")
+      assert first.currency == "EUR"
+
+      youtube = Enum.find(transactions, &(&1.label == "YouTube"))
+      assert youtube.date == ~D[2026-01-19]
+      assert youtube.amount == Decimal.new("-2.31")
+
+      vir = Enum.find(transactions, &(&1.label == "Vir Cheh"))
+      assert vir.amount == Decimal.new("1.00")
+
+      sncf_txns = Enum.filter(transactions, &(&1.label == "SNCF"))
+      assert length(sncf_txns) == 2
+
+      cheque = Enum.find(transactions, &String.contains?(&1.label, "Remise"))
+      assert cheque.label == "Remise Chèque N.7239954"
+      assert cheque.amount == Decimal.new("40.00")
+
+      tisseo = Enum.find(transactions, &String.contains?(&1.original_label, "Tisséo"))
+      assert tisseo.label == "Tisséo"
+      assert tisseo.amount == Decimal.new("-1.80")
+    end
+
+    test "parses a real BoursoBank export with BOM prefix" do
+      bom_content = "\uFEFF" <> fixture("boursobank_real_export.csv")
+      assert {:ok, transactions} = Boursorama.parse(bom_content)
+      assert length(transactions) == 13
+    end
   end
 
   describe "clean_label/1" do

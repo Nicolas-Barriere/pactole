@@ -13,6 +13,18 @@ defmodule Moulax.ParsersTest do
                Parsers.detect_parser(fixture("boursorama_valid.csv"))
     end
 
+    test "detects Boursorama parser for real BoursoBank export" do
+      assert {:ok, Moulax.Parsers.Boursorama} =
+               Parsers.detect_parser(fixture("boursobank_real_export.csv"))
+    end
+
+    test "detects parser even with UTF-8 BOM prefix" do
+      bom_content = "\uFEFF" <> fixture("boursobank_real_export.csv")
+
+      assert {:ok, Moulax.Parsers.Boursorama} =
+               Parsers.detect_parser(bom_content)
+    end
+
     test "returns :error for unknown CSV format" do
       assert :error = Parsers.detect_parser("unknown;format\n1;2")
     end
