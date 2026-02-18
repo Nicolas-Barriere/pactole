@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboardIcon },
@@ -14,11 +14,13 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const prevPathname = useRef(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  if (prevPathname.current !== pathname) {
+    prevPathname.current = pathname;
+    if (mobileOpen) setMobileOpen(false);
+  }
 
   useEffect(() => {
     if (!mobileOpen) return;
