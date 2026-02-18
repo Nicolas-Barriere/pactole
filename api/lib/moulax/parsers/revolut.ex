@@ -6,7 +6,8 @@ defmodule Moulax.Parsers.Revolut do
   `Type`, `Product`, `Started Date`, `Completed Date`, `Description`,
   `Amount`, `Fee`, `Currency`, `State`, `Balance`.
 
-  Only rows with State = "COMPLETED" are imported.
+  Supports both English and French (fr-fr) localized exports.
+  Only completed rows (State = "COMPLETED" or État = "TERMINÉ") are imported.
   Non-zero fees generate an additional transaction.
   """
 
@@ -14,7 +15,7 @@ defmodule Moulax.Parsers.Revolut do
 
   alias Moulax.Parsers.ParseError
 
-  @required_headers [
+  @canonical_headers [
     "Type",
     "Product",
     "Started Date",
@@ -27,6 +28,19 @@ defmodule Moulax.Parsers.Revolut do
     "Balance"
   ]
 
+  @fr_to_en %{
+    "Produit" => "Product",
+    "Date de début" => "Started Date",
+    "Date de fin" => "Completed Date",
+    "Montant" => "Amount",
+    "Frais" => "Fee",
+    "Devise" => "Currency",
+    "État" => "State",
+    "Solde" => "Balance"
+  }
+
+  @completed_states ~w(COMPLETED TERMINÉ)
+
   @impl true
   def detect?(content) when is_binary(content) do
     case first_line(content) do
@@ -34,8 +48,12 @@ defmodule Moulax.Parsers.Revolut do
         false
 
       line ->
-        headers = split_row(line)
-        Enum.all?(@required_headers, &(&1 in headers))
+        headers =
+          line
+          |> split_row()
+          |> Enum.map(&normalize_header/1)
+
+        Enum.all?(@canonical_headers, &(&1 in headers))
     end
   end
 
@@ -79,15 +97,20 @@ defmodule Moulax.Parsers.Revolut do
 
   defp split_row(line), do: String.split(line, ",")
 
+  defp normalize_header(header) do
+    trimmed = String.trim(header)
+    Map.get(@fr_to_en, trimmed, trimmed)
+  end
+
   defp column_index_map(headers) do
     headers
-    |> Enum.map(&String.trim/1)
+    |> Enum.map(&normalize_header/1)
     |> Enum.with_index()
     |> Map.new()
   end
 
   defp validate_headers(col_map) do
-    missing = Enum.reject(@required_headers, &Map.has_key?(col_map, &1))
+    missing = Enum.reject(@canonical_headers, &Map.has_key?(col_map, &1))
 
     if missing == [], do: :ok, else: {:error, missing}
   end
@@ -104,7 +127,7 @@ defmodule Moulax.Parsers.Revolut do
           {txns, errs}
 
         state ->
-          if String.trim(state) == "COMPLETED" do
+          if String.trim(state) in @completed_states do
             case parse_row(fields, col_map, idx) do
               {:ok, new_txns} -> {new_txns ++ txns, errs}
               {:error, error} -> {txns, [error | errs]}
