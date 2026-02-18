@@ -30,13 +30,13 @@ defmodule Moulax.Accounts.Behaviour do
 
   @doc "Creates a new account."
   @callback create_account(attrs :: map()) ::
-          {:ok, %Account{}} | {:error, Ecto.Changeset.t()}
+              {:ok, %Account{}} | {:error, Ecto.Changeset.t()}
 
   @doc "Updates an account."
   @callback update_account(%Account{}, attrs :: map()) ::
-          {:ok, %Account{}} | {:error, Ecto.Changeset.t()}
+              {:ok, %Account{}} | {:error, Ecto.Changeset.t()}
 
   @doc "Archives an account (soft delete). Accepts struct or ID."
   @callback archive_account(%Account{} | account_id()) ::
-          {:ok, %Account{}} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+              {:ok, %Account{}} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
 end

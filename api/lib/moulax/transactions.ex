@@ -89,8 +89,12 @@ defmodule Moulax.Transactions do
 
   defp apply_filter_date_from(query, opts) do
     case opts["date_from"] || opts[:date_from] do
-      nil -> query
-      %Date{} = d -> where(query, [t], t.date >= ^d)
+      nil ->
+        query
+
+      %Date{} = d ->
+        where(query, [t], t.date >= ^d)
+
       str when is_binary(str) ->
         case Date.from_iso8601(str) do
           {:ok, d} -> where(query, [t], t.date >= ^d)
@@ -101,8 +105,12 @@ defmodule Moulax.Transactions do
 
   defp apply_filter_date_to(query, opts) do
     case opts["date_to"] || opts[:date_to] do
-      nil -> query
-      %Date{} = d -> where(query, [t], t.date <= ^d)
+      nil ->
+        query
+
+      %Date{} = d ->
+        where(query, [t], t.date <= ^d)
+
       str when is_binary(str) ->
         case Date.from_iso8601(str) do
           {:ok, d} -> where(query, [t], t.date <= ^d)
@@ -113,20 +121,24 @@ defmodule Moulax.Transactions do
 
   defp apply_filter_search(query, opts) do
     case opts["search"] || opts[:search] do
-      nil -> query
-      "" -> query
+      nil ->
+        query
+
+      "" ->
+        query
+
       term ->
         pattern = "%#{String.replace(term, "%", "\\%")}%"
         where(query, [t], ilike(t.label, ^pattern))
     end
   end
 
-  defp apply_sort(query, "amount", "asc"), do: order_by(query, [t], [asc: t.amount])
-  defp apply_sort(query, "amount", _), do: order_by(query, [t], [desc: t.amount])
-  defp apply_sort(query, "label", "asc"), do: order_by(query, [t], [asc: t.label])
-  defp apply_sort(query, "label", _), do: order_by(query, [t], [desc: t.label])
-  defp apply_sort(query, _sort_by, "asc"), do: order_by(query, [t], [asc: t.date])
-  defp apply_sort(query, _sort_by, _), do: order_by(query, [t], [desc: t.date])
+  defp apply_sort(query, "amount", "asc"), do: order_by(query, [t], asc: t.amount)
+  defp apply_sort(query, "amount", _), do: order_by(query, [t], desc: t.amount)
+  defp apply_sort(query, "label", "asc"), do: order_by(query, [t], asc: t.label)
+  defp apply_sort(query, "label", _), do: order_by(query, [t], desc: t.label)
+  defp apply_sort(query, _sort_by, "asc"), do: order_by(query, [t], asc: t.date)
+  defp apply_sort(query, _sort_by, _), do: order_by(query, [t], desc: t.date)
 
   @doc """
   Fetches a single transaction by ID. Returns `{:ok, transaction_map}` or `{:error, :not_found}`.
@@ -196,12 +208,21 @@ defmodule Moulax.Transactions do
   """
   def bulk_categorize(transaction_ids, category_id) when is_list(transaction_ids) do
     ids = Enum.filter(transaction_ids, &is_binary/1)
+
     if ids == [] do
       {:ok, 0}
     else
       # Allow nil category_id to uncategorize
       query = from t in Transaction, where: t.id in ^ids
-      {count, _} = Repo.update_all(query, set: [category_id: category_id, updated_at: DateTime.utc_now() |> DateTime.truncate(:second)])
+
+      {count, _} =
+        Repo.update_all(query,
+          set: [
+            category_id: category_id,
+            updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+          ]
+        )
+
       {:ok, count}
     end
   end

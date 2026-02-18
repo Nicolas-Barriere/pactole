@@ -1,0 +1,4 @@
+dateOp;dateVal;label;category;categoryParent;supplierFound;amount;accountNum;accountLabel;accountBalance
+not-a-date;2026-02-10;CARTE 10/02 CARREFOUR;;;;-45,32;;;
+2026-02-09;2026-02-09;;;;;not-a-number;;;
+2026-02-08;2026-02-08;;;;;-32,50;;;

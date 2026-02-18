@@ -10,6 +10,7 @@ defmodule MoulaxWeb.Router do
 
     resources "/accounts", AccountController, except: [:new, :edit]
     resources "/categories", CategoryController, except: [:new, :edit]
+
     resources "/accounts", AccountController, except: [:new, :edit] do
       resources "/transactions", TransactionController, only: [:index, :create]
     end

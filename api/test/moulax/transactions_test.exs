@@ -60,7 +60,9 @@ defmodule Moulax.TransactionsTest do
       insert_transaction(account.id, ~D[2026-02-10], "Mid", "-2", "manual")
       insert_transaction(account.id, ~D[2026-03-20], "New", "-3", "manual")
 
-      result = Transactions.list_transactions(%{"date_from" => "2026-02-01", "date_to" => "2026-02-28"})
+      result =
+        Transactions.list_transactions(%{"date_from" => "2026-02-01", "date_to" => "2026-02-28"})
+
       assert result.meta.total_count == 1
       assert hd(result.data).date == "2026-02-10"
     end
@@ -81,6 +83,7 @@ defmodule Moulax.TransactionsTest do
 
     test "pagination with page and per_page" do
       account = insert_account()
+
       for i <- 1..5 do
         insert_transaction(account.id, ~D[2026-02-01], "Tx #{i}", "-#{i}", "manual")
       end
@@ -111,6 +114,7 @@ defmodule Moulax.TransactionsTest do
 
       result = Transactions.list_transactions(%{"sort_by" => "amount", "sort_order" => "asc"})
       assert length(result.data) == 2
+
       # Asc by amount: -5 then -100 (smaller absolute first when asc on negative numbers: -100 < -5)
       assert hd(result.data).amount == "-100"
     end
@@ -135,6 +139,7 @@ defmodule Moulax.TransactionsTest do
   describe "create_transaction/1" do
     test "creates manual transaction with required fields" do
       account = insert_account()
+
       attrs = %{
         account_id: account.id,
         date: ~D[2026-02-15],
@@ -153,7 +158,15 @@ defmodule Moulax.TransactionsTest do
 
     test "validates required fields" do
       assert {:error, changeset} = Transactions.create_transaction(%{})
-      assert %{account_id: [_], date: [_], label: [_], original_label: [_], amount: [_], source: [_]} =
+
+      assert %{
+               account_id: [_],
+               date: [_],
+               label: [_],
+               original_label: [_],
+               amount: [_],
+               source: [_]
+             } =
                errors_on(changeset)
     end
   end
@@ -164,7 +177,9 @@ defmodule Moulax.TransactionsTest do
       cat = insert_category()
       tx = insert_transaction(account.id, ~D[2026-02-01], "Old", "-10", "manual", nil)
 
-      assert {:ok, updated} = Transactions.update_transaction(tx, %{category_id: cat.id, label: "New label"})
+      assert {:ok, updated} =
+               Transactions.update_transaction(tx, %{category_id: cat.id, label: "New label"})
+
       assert updated.category_id == cat.id
       assert updated.label == "New label"
     end

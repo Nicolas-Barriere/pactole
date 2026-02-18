@@ -8,7 +8,12 @@ defmodule MoulaxWeb.TransactionController do
   Nested route provides account_id from path; global route may pass account_id and other filters as query params.
   """
   def index(conn, params) do
-    opts = Map.take(params, ~w(account_id category_id date_from date_to search page per_page sort_by sort_order))
+    opts =
+      Map.take(
+        params,
+        ~w(account_id category_id date_from date_to search page per_page sort_by sort_order)
+      )
+
     result = Transactions.list_transactions(opts)
     json(conn, result)
   end
