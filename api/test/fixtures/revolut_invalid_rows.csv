@@ -1,0 +1,4 @@
+Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-02-10 10:30:00,not-a-date,Uber,-12.50,0.00,EUR,COMPLETED,1234.56
+CARD_PAYMENT,Current,2026-02-09 09:00:00,2026-02-09 09:00:00,Coffee,abc,0.00,EUR,COMPLETED,1247.06
+CARD_PAYMENT,Current,2026-02-08 14:00:00,2026-02-08 14:00:00,,-29.99,0.00,USD,COMPLETED,1297.06

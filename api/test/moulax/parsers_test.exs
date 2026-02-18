@@ -17,8 +17,9 @@ defmodule Moulax.ParsersTest do
       assert :error = Parsers.detect_parser("unknown;format\n1;2")
     end
 
-    test "returns :error for Revolut CSV (not yet implemented)" do
-      assert :error = Parsers.detect_parser(fixture("revolut_sample.csv"))
+    test "detects Revolut parser" do
+      assert {:ok, Moulax.Parsers.Revolut} =
+               Parsers.detect_parser(fixture("revolut_sample.csv"))
     end
 
     test "returns :error for empty content" do

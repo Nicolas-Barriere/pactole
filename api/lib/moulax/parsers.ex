@@ -7,7 +7,8 @@ defmodule Moulax.Parsers do
   """
 
   @parsers [
-    Moulax.Parsers.Boursorama
+    Moulax.Parsers.Boursorama,
+    Moulax.Parsers.Revolut
   ]
 
   @doc """
