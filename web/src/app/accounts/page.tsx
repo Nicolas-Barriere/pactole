@@ -60,7 +60,7 @@ export default function AccountsPage() {
   async function handleCreate(data: AccountFormData) {
     try {
       setFormLoading(true);
-      await api.post("/accounts", { account: data });
+      await api.post("/accounts", data);
       toast.success("Compte créé avec succès");
       setFormOpen(false);
       fetchAccounts();

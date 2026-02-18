@@ -108,9 +108,7 @@ export default function AccountDetailPage() {
   async function handleEdit(data: AccountFormData) {
     try {
       setEditLoading(true);
-      const updated = await api.put<Account>(`/accounts/${params.id}`, {
-        account: data,
-      });
+      const updated = await api.put<Account>(`/accounts/${params.id}`, data);
       setAccount(updated);
       toast.success("Compte modifié avec succès");
       setEditOpen(false);

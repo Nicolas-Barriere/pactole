@@ -26,6 +26,7 @@ services:
     environment:
       MIX_ENV: dev
       DB_HOST: db
+      DB_PORT: "5432"
       PHX_HOST: localhost
     volumes:
       - ./api:/app
