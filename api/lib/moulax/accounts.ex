@@ -97,7 +97,8 @@ defmodule Moulax.Accounts do
   end
 
   defp format_datetime(nil), do: nil
-  defp format_datetime(dt), do: DateTime.to_iso8601(dt)
+  defp format_datetime(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt) <> "Z"
+  defp format_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
   defp compute_balance(account) do
     sum =
