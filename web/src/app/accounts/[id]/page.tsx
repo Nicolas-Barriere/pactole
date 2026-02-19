@@ -59,6 +59,8 @@ export default function AccountDetailPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [editingBalance, setEditingBalance] = useState(false);
+  const [balanceInput, setBalanceInput] = useState("");
 
   const fetchAccount = useCallback(async () => {
     try {
@@ -139,6 +141,46 @@ export default function AccountDetailPage() {
     }
   }
 
+  function startEditingBalance() {
+    if (account) {
+      setBalanceInput(account.initial_balance);
+      setEditingBalance(true);
+    }
+  }
+
+  async function saveInitialBalance() {
+    const value = balanceInput.trim();
+    if (!value || isNaN(parseFloat(value))) {
+      setEditingBalance(false);
+      return;
+    }
+    if (account && value === account.initial_balance) {
+      setEditingBalance(false);
+      return;
+    }
+    try {
+      const updated = await api.put<Account>(`/accounts/${params.id}`, {
+        initial_balance: value,
+      });
+      setAccount(updated);
+      fetchTransactions();
+      toast.success("Solde initial modifié");
+    } catch {
+      toast.error("Erreur lors de la modification du solde initial");
+    } finally {
+      setEditingBalance(false);
+    }
+  }
+
+  function handleBalanceKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveInitialBalance();
+    } else if (e.key === "Escape") {
+      setEditingBalance(false);
+    }
+  }
+
   if (loading) {
     return <AccountDetailSkeleton />;
   }
@@ -216,11 +258,31 @@ export default function AccountDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-6 border-t border-border pt-4 text-sm text-muted">
+        <div className="mt-4 flex flex-wrap items-center gap-6 border-t border-border pt-4 text-sm text-muted">
           <span>{account.transaction_count} transactions</span>
-          <span>
+          <span className="inline-flex items-center gap-1.5">
             Solde initial :{" "}
-            {formatAmount(account.initial_balance, account.currency)}
+            {editingBalance ? (
+              <input
+                type="number"
+                step="0.01"
+                value={balanceInput}
+                onChange={(e) => setBalanceInput(e.target.value)}
+                onBlur={saveInitialBalance}
+                onKeyDown={handleBalanceKeyDown}
+                autoFocus
+                className="w-28 rounded border border-primary bg-background px-2 py-0.5 text-sm text-foreground outline-none"
+              />
+            ) : (
+              <button
+                onClick={startEditingBalance}
+                className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-foreground transition-colors hover:bg-card-hover"
+                title="Modifier le solde initial"
+              >
+                {formatAmount(account.initial_balance, account.currency)}
+                <PencilIcon className="h-3 w-3 text-muted" />
+              </button>
+            )}
           </span>
           {account.last_import_at && (
             <span>Dernier import : {formatDate(account.last_import_at)}</span>
