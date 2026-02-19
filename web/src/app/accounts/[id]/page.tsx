@@ -13,7 +13,7 @@ import {
   TYPE_BADGE_STYLES,
   type AccountFormData,
 } from "@/components/account-form";
-import type { Account, Transaction, Import } from "@/types";
+import type { Account, Transaction, Import, PaginatedResponse } from "@/types";
 
 function formatAmount(amount: string, currency = "EUR"): string {
   return new Intl.NumberFormat("fr-FR", {
@@ -79,10 +79,10 @@ export default function AccountDetailPage() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const data = await api.get<Transaction[]>(
+      const res = await api.get<PaginatedResponse<Transaction>>(
         `/accounts/${params.id}/transactions?per_page=20`,
       );
-      setTransactions(Array.isArray(data) ? data : []);
+      setTransactions(res.data ?? []);
     } catch {
       /* transactions are non-critical, silently fail */
     }
