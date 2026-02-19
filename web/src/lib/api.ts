@@ -76,3 +76,24 @@ export const api = {
     });
   },
 };
+
+/* ── Dashboard helpers ──────────────────────────────── */
+
+import type {
+  DashboardSummary,
+  DashboardSpending,
+  DashboardTrends,
+  DashboardTopExpenses,
+} from "@/types";
+
+export const dashboard = {
+  summary: () => api.get<DashboardSummary>("/dashboard/summary"),
+  spending: (month: string) =>
+    api.get<DashboardSpending>(`/dashboard/spending?month=${month}`),
+  trends: (months = 12) =>
+    api.get<DashboardTrends>(`/dashboard/trends?months=${months}`),
+  topExpenses: (month: string, limit = 5) =>
+    api.get<DashboardTopExpenses>(
+      `/dashboard/top-expenses?month=${month}&limit=${limit}`,
+    ),
+};
