@@ -53,3 +53,13 @@ body {
 .toast-exit {
   animation: toast-exit 0.2s ease-in forwards;
 }
+
+@keyframes check-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-check-in {
+  animation: check-in 0.3s ease-out forwards;
+}

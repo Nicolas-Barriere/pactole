@@ -21,20 +21,32 @@ export interface Account {
 
 export type TransactionSource = "csv_import" | "manual";
 
+export interface AccountRef {
+  id: string;
+  name: string;
+  bank: string;
+  type: AccountType;
+}
+
+export interface CategoryRef {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Transaction {
   id: string;
   account_id: string;
+  account: AccountRef | null;
   date: string;
   label: string;
   original_label: string;
   amount: string; // Decimal as string — negative = expense, positive = income
   currency: string;
   category_id: string | null;
-  category: Category | null;
+  category: CategoryRef | null;
   bank_reference: string | null;
   source: TransactionSource;
-  inserted_at: string;
-  updated_at: string;
 }
 
 /* ── Category ────────────────────────────────────────── */
@@ -117,7 +129,7 @@ export interface PaginatedResponse<T> {
   meta: {
     page: number;
     per_page: number;
-    total: number;
+    total_count: number;
     total_pages: number;
   };
 }

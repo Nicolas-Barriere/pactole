@@ -30,8 +30,8 @@ defmodule Moulax.Transactions do
   Returns `%{data: [transaction_map, ...], meta: %{page, per_page, total_count, total_pages}}`.
   """
   def list_transactions(opts \\ []) do
-    per_page = min(opts["per_page"] || opts[:per_page] || @default_per_page, 100)
-    page = max(opts["page"] || opts[:page] || 1, 1)
+    per_page = min(to_int(opts["per_page"] || opts[:per_page], @default_per_page), 100)
+    page = max(to_int(opts["page"] || opts[:page], 1), 1)
     sort_by = opts["sort_by"] || opts[:sort_by] || @default_sort_by
     sort_order = opts["sort_order"] || opts[:sort_order] || @default_sort_order
 
@@ -253,4 +253,13 @@ defmodule Moulax.Transactions do
   defp format_decimal(nil), do: nil
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)
   defp format_decimal(other), do: to_string(other)
+
+  defp to_int(val, _default) when is_integer(val), do: val
+  defp to_int(val, default) when is_binary(val) do
+    case Integer.parse(val) do
+      {n, _} -> n
+      :error -> default
+    end
+  end
+  defp to_int(_, default), do: default
 end
