@@ -54,6 +54,18 @@ defmodule Moulax.Categories.RulesTest do
       assert {:error, changeset} = Rules.create_rule(%{})
       assert %{keyword: [_], category_id: [_]} = errors_on(changeset)
     end
+
+    test "returns fully formatted category payload" do
+      cat = insert_category(%{name: "Utilities", color: "#0ea5e9"})
+
+      assert {:ok, rule} = Rules.create_rule(%{keyword: "EDF", category_id: cat.id, priority: 7})
+
+      assert rule.keyword == "EDF"
+      assert rule.priority == 7
+      assert rule.category.id == cat.id
+      assert rule.category.name == "Utilities"
+      assert rule.category.color == "#0ea5e9"
+    end
   end
 
   describe "update_rule/2" do
@@ -72,6 +84,19 @@ defmodule Moulax.Categories.RulesTest do
 
       assert {:error, changeset} = Rules.update_rule(rule, %{keyword: nil})
       assert %{keyword: [_]} = errors_on(changeset)
+    end
+
+    test "can reassign category and returns updated category payload" do
+      from_cat = insert_category(%{name: "Food", color: "#22c55e"})
+      to_cat = insert_category(%{name: "Health", color: "#ef4444"})
+      rule = insert_rule(%{keyword: "PHARMACY", category_id: from_cat.id, priority: 3})
+
+      assert {:ok, updated} = Rules.update_rule(rule, %{category_id: to_cat.id, priority: 9})
+
+      assert updated.priority == 9
+      assert updated.category.id == to_cat.id
+      assert updated.category.name == "Health"
+      assert updated.category.color == "#ef4444"
     end
   end
 
