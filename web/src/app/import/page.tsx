@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, type DragEvent } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, type DragEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
 import { BANK_LABELS } from "@/components/account-form";
-import type { Account, Import, ImportError } from "@/types";
+import type { Account, Import, ImportRowDetail, ImportRowStatus } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -553,7 +553,7 @@ function ResultsStep({
 }) {
   const isFailed = result.status === "failed";
   const hasErrors = result.rows_errored > 0 || (result.error_details?.length ?? 0) > 0;
-  const errors: ImportError[] = result.error_details ?? [];
+  const rows: ImportRowDetail[] = result.row_details ?? [];
 
   return (
     <div className="space-y-4">
@@ -624,13 +624,14 @@ function ResultsStep({
         </div>
       )}
 
-      {/* Error details */}
-      {errors.length > 0 && (
+      {/* Transaction details table */}
+      {rows.length > 0 && <ImportResultsTable rows={rows} />}
+
+      {/* Fallback: error details for failed imports (no row_details) */}
+      {isFailed && rows.length === 0 && (result.error_details?.length ?? 0) > 0 && (
         <div className="rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
-            <h3 className="text-sm font-medium">
-              {isFailed ? "Détails de l'erreur" : "Détails des erreurs"}
-            </h3>
+            <h3 className="text-sm font-medium">Détails de l&#39;erreur</h3>
           </div>
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-sm">
@@ -641,11 +642,8 @@ function ResultsStep({
                 </tr>
               </thead>
               <tbody>
-                {errors.map((err, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-border last:border-0"
-                  >
+                {result.error_details.map((err, i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
                     <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">
                       {err.row > 0 ? `#${err.row}` : "—"}
                     </td>
@@ -683,6 +681,152 @@ function ResultsStep({
       </div>
     </div>
   );
+}
+
+/* ── Import Results Table (Excel-like) ───────────────── */
+
+const STATUS_CONFIG: Record<ImportRowStatus, { label: string; class: string; bg: string }> = {
+  added: { label: "Ajoutée", class: "text-success", bg: "bg-success/10" },
+  skipped: { label: "Ignorée", class: "text-warning", bg: "bg-warning/10" },
+  error: { label: "Erreur", class: "text-danger", bg: "bg-danger/10" },
+};
+
+const FILTER_OPTIONS: { value: "all" | ImportRowStatus; label: string }[] = [
+  { value: "all", label: "Tout" },
+  { value: "added", label: "Ajoutées" },
+  { value: "skipped", label: "Ignorées" },
+  { value: "error", label: "Erreurs" },
+];
+
+function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
+  const [filter, setFilter] = useState<"all" | ImportRowStatus>("all");
+
+  const filteredRows = useMemo(
+    () => (filter === "all" ? rows : rows.filter((r) => r.status === filter)),
+    [rows, filter],
+  );
+
+  const counts = useMemo(() => {
+    const c = { all: rows.length, added: 0, skipped: 0, error: 0 };
+    for (const r of rows) c[r.status]++;
+    return c;
+  }, [rows]);
+
+  return (
+    <div className="rounded-xl border border-border bg-card">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h3 className="text-sm font-medium">
+          Détail des transactions
+          <span className="ml-2 text-xs text-muted">
+            ({filteredRows.length}{filter !== "all" ? ` / ${rows.length}` : ""})
+          </span>
+        </h3>
+        <div className="flex gap-1">
+          {FILTER_OPTIONS.map((opt) => {
+            const count = counts[opt.value];
+            if (opt.value !== "all" && count === 0) return null;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setFilter(opt.value)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  filter === opt.value
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted hover:bg-muted/10 hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+                <span className="ml-1 tabular-nums opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="max-h-[28rem] overflow-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-card">
+            <tr className="border-b-2 border-border text-left text-xs uppercase tracking-wider text-muted">
+              <th className="w-12 px-3 py-2.5 text-center font-semibold">#</th>
+              <th className="w-24 px-3 py-2.5 font-semibold">Date</th>
+              <th className="px-3 py-2.5 font-semibold">Libellé</th>
+              <th className="w-28 px-3 py-2.5 text-right font-semibold">Montant</th>
+              <th className="w-32 px-3 py-2.5 font-semibold">Catégorie</th>
+              <th className="w-24 px-3 py-2.5 text-center font-semibold">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((row) => {
+              const cfg = STATUS_CONFIG[row.status];
+              const amount = parseFloat(row.amount);
+              const isNegative = amount < 0;
+
+              return (
+                <tr
+                  key={row.row}
+                  className={`border-b border-border/50 transition-colors hover:bg-muted/5 ${
+                    row.status === "error" ? "bg-danger/[0.03]" : ""
+                  }`}
+                >
+                  <td className="px-3 py-2 text-center font-mono text-xs text-muted/70">
+                    {row.row}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                    {formatShortDate(row.date)}
+                  </td>
+                  <td className="max-w-0 truncate px-3 py-2" title={row.label}>
+                    <span className="text-foreground">{row.label}</span>
+                    {row.error && (
+                      <span className="ml-2 text-xs text-danger">{row.error}</span>
+                    )}
+                  </td>
+                  <td
+                    className={`whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-medium tabular-nums ${
+                      isNegative ? "text-danger" : "text-success"
+                    }`}
+                  >
+                    {isNegative ? "" : "+"}{formatAmount(amount)}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted">
+                    {row.category ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${cfg.bg} ${cfg.class}`}
+                    >
+                      {cfg.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted">
+                  Aucune transaction pour ce filtre
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatAmount(n: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+  }).format(n);
 }
 
 /* ── Stat Card ───────────────────────────────────────── */

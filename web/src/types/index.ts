@@ -80,6 +80,18 @@ export interface ImportError {
   message: string;
 }
 
+export type ImportRowStatus = "added" | "skipped" | "error";
+
+export interface ImportRowDetail {
+  row: number;
+  date: string;
+  label: string;
+  amount: string;
+  category: string | null;
+  status: ImportRowStatus;
+  error?: string;
+}
+
 export interface Import {
   id: string;
   account_id: string;
@@ -90,6 +102,7 @@ export interface Import {
   rows_errored: number;
   status: ImportStatus;
   error_details: ImportError[];
+  row_details?: ImportRowDetail[];
   inserted_at: string;
   updated_at: string;
 }

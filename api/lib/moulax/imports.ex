@@ -8,6 +8,7 @@ defmodule Moulax.Imports do
   alias Moulax.Repo
   alias Moulax.Imports.Import
   alias Moulax.Parsers
+  alias Moulax.Categories.Category
   alias Moulax.Categories.Rules
   alias Moulax.Transactions.Transaction
 
@@ -68,7 +69,7 @@ defmodule Moulax.Imports do
   defp run_pipeline(import_record, csv_content) do
     with {:ok, parser} <- detect_parser(csv_content),
          {:ok, rows} <- parse_csv(parser, csv_content) do
-      {imported, skipped, errored, error_details} =
+      {imported, skipped, errored, error_details, row_details} =
         process_rows(import_record.account_id, rows)
 
       total = imported + skipped + errored
@@ -85,7 +86,8 @@ defmodule Moulax.Imports do
         })
         |> Repo.update!()
 
-      {:ok, import_to_response(updated)}
+      response = import_to_response(updated) |> Map.put(:row_details, row_details)
+      {:ok, response}
     else
       {:error, :unknown_format} ->
         fail_import(import_record, "Unknown CSV format — no parser matched")
@@ -110,36 +112,59 @@ defmodule Moulax.Imports do
   end
 
   defp process_rows(account_id, rows) do
-    rows
-    |> Enum.with_index(2)
-    |> Enum.reduce({0, 0, 0, []}, fn {row, row_index}, {imported, skipped, errored, errors} ->
-      category_id = Rules.match_category(row.label)
+    category_names = load_category_names()
 
-      attrs = %{
-        account_id: account_id,
-        date: row.date,
-        label: row.label,
-        original_label: row.original_label,
-        amount: row.amount,
-        currency: row[:currency] || "EUR",
-        bank_reference: row[:bank_reference],
-        category_id: category_id,
-        source: "csv_import"
-      }
+    {imported, skipped, errored, errors_rev, details_rev} =
+      rows
+      |> Enum.with_index(2)
+      |> Enum.reduce({0, 0, 0, [], []}, fn {row, row_index},
+                                           {imported, skipped, errored, errors, details} ->
+        category_id = Rules.match_category(row.label)
 
-      case insert_transaction(attrs) do
-        {:ok, _tx} ->
-          {imported + 1, skipped, errored, errors}
+        attrs = %{
+          account_id: account_id,
+          date: row.date,
+          label: row.label,
+          original_label: row.original_label,
+          amount: row.amount,
+          currency: row[:currency] || "EUR",
+          bank_reference: row[:bank_reference],
+          category_id: category_id,
+          source: "csv_import"
+        }
 
-        {:duplicate, _} ->
-          {imported, skipped + 1, errored, errors}
+        base_detail = %{
+          "row" => row_index,
+          "date" => to_string(row.date),
+          "label" => row.label,
+          "amount" => to_string(row.amount),
+          "category" => category_names[category_id]
+        }
 
-        {:error, changeset} ->
-          msg = changeset_error_message(changeset)
-          detail = %{"row" => row_index, "message" => msg}
-          {imported, skipped, errored + 1, errors ++ [detail]}
-      end
-    end)
+        case insert_transaction(attrs) do
+          {:ok, _tx} ->
+            detail = Map.put(base_detail, "status", "added")
+            {imported + 1, skipped, errored, errors, [detail | details]}
+
+          {:duplicate, _} ->
+            detail = Map.put(base_detail, "status", "skipped")
+            {imported, skipped + 1, errored, errors, [detail | details]}
+
+          {:error, changeset} ->
+            msg = changeset_error_message(changeset)
+            error = %{"row" => row_index, "message" => msg}
+            detail = base_detail |> Map.put("status", "error") |> Map.put("error", msg)
+            {imported, skipped, errored + 1, [error | errors], [detail | details]}
+        end
+      end)
+
+    {imported, skipped, errored, Enum.reverse(errors_rev), Enum.reverse(details_rev)}
+  end
+
+  defp load_category_names do
+    Category
+    |> Repo.all()
+    |> Map.new(fn cat -> {cat.id, cat.name} end)
   end
 
   defp insert_transaction(attrs) do
