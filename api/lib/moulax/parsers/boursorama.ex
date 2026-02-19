@@ -17,6 +17,9 @@ defmodule Moulax.Parsers.Boursorama do
   @required_headers ~w(dateOp dateVal label amount)
 
   @impl true
+  def bank, do: "boursorama"
+
+  @impl true
   def detect?(content) when is_binary(content) do
     case first_line(content) do
       nil ->
@@ -144,7 +147,11 @@ defmodule Moulax.Parsers.Boursorama do
     do: {:error, %ParseError{row: row_idx, message: "missing amount"}}
 
   defp parse_amount(amount_str, row_idx) do
-    normalized = amount_str |> String.trim() |> String.replace(",", ".")
+    normalized =
+      amount_str
+      |> String.trim()
+      |> String.replace(~r/\s+/, "")
+      |> String.replace(",", ".")
 
     case Decimal.parse(normalized) do
       {decimal, ""} ->

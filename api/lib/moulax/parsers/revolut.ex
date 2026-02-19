@@ -28,6 +28,9 @@ defmodule Moulax.Parsers.Revolut do
     "Balance"
   ]
 
+  @impl true
+  def bank, do: "revolut"
+
   @fr_to_en %{
     "Produit" => "Product",
     "Date de début" => "Started Date",
@@ -205,7 +208,13 @@ defmodule Moulax.Parsers.Revolut do
     do: {:error, %ParseError{row: row_idx, message: "missing amount"}}
 
   defp parse_amount(amount_str, row_idx) do
-    case Decimal.parse(String.trim(amount_str)) do
+    normalized =
+      amount_str
+      |> String.trim()
+      |> String.replace(~r/\s+/, "")
+      |> String.replace(",", ".")
+
+    case Decimal.parse(normalized) do
       {decimal, ""} -> {:ok, decimal}
       :error -> {:error, %ParseError{row: row_idx, message: "invalid amount: #{amount_str}"}}
       _ -> {:error, %ParseError{row: row_idx, message: "invalid amount: #{amount_str}"}}
@@ -234,7 +243,13 @@ defmodule Moulax.Parsers.Revolut do
   defp parse_fee("", _row_idx), do: {:ok, Decimal.new("0")}
 
   defp parse_fee(fee_str, row_idx) do
-    case Decimal.parse(String.trim(fee_str)) do
+    normalized =
+      fee_str
+      |> String.trim()
+      |> String.replace(~r/\s+/, "")
+      |> String.replace(",", ".")
+
+    case Decimal.parse(normalized) do
       {decimal, ""} -> {:ok, decimal}
       :error -> {:error, %ParseError{row: row_idx, message: "invalid fee: #{fee_str}"}}
       _ -> {:error, %ParseError{row: row_idx, message: "invalid fee: #{fee_str}"}}

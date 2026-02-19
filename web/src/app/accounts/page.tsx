@@ -33,8 +33,6 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -57,28 +55,6 @@ export default function AccountsPage() {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  async function handleCreate(data: AccountFormData) {
-    try {
-      setFormLoading(true);
-      await api.post("/accounts", data);
-      toast.success("Compte créé avec succès");
-      setFormOpen(false);
-      fetchAccounts();
-    } catch (err) {
-      if (err instanceof ApiError && err.body) {
-        const body = err.body as { errors?: Record<string, string[]> };
-        const messages = body.errors
-          ? Object.values(body.errors).flat().join(", ")
-          : "Erreur lors de la création";
-        toast.error(messages);
-      } else {
-        toast.error("Erreur de connexion");
-      }
-    } finally {
-      setFormLoading(false);
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -86,15 +62,15 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Comptes</h1>
           <p className="text-sm text-muted">Gérez vos comptes bancaires</p>
         </div>
-        <button
-          onClick={() => setFormOpen(true)}
+        <Link
+          href="/accounts/new"
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
         >
           <span className="flex items-center gap-2">
             <PlusIcon className="h-4 w-4" />
             Ajouter un compte
           </span>
-        </button>
+        </Link>
       </div>
 
       {loading && <AccountListSkeleton />}
@@ -117,12 +93,12 @@ export default function AccountsPage() {
           <p className="text-sm text-muted">
             Aucun compte pour le moment.
           </p>
-          <button
-            onClick={() => setFormOpen(true)}
-            className="mt-3 text-sm font-medium text-primary hover:text-primary-hover"
+          <Link
+            href="/accounts/new"
+            className="mt-3 inline-block text-sm font-medium text-primary hover:text-primary-hover"
           >
             Créer votre premier compte
-          </button>
+          </Link>
         </div>
       )}
 
@@ -133,14 +109,6 @@ export default function AccountsPage() {
           ))}
         </div>
       )}
-
-      <AccountForm
-        key={formOpen ? "create" : "closed"}
-        open={formOpen}
-        loading={formLoading}
-        onSubmit={handleCreate}
-        onClose={() => setFormOpen(false)}
-      />
     </div>
   );
 }
@@ -171,9 +139,8 @@ function AccountCard({ account }: { account: Account }) {
       </h3>
 
       <p
-        className={`text-2xl font-bold tabular-nums ${
-          balance >= 0 ? "text-foreground" : "text-danger"
-        }`}
+        className={`text-2xl font-bold tabular-nums ${balance >= 0 ? "text-foreground" : "text-danger"
+          }`}
       >
         {formatAmount(account.balance, account.currency)}
       </p>

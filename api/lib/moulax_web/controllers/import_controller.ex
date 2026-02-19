@@ -54,6 +54,28 @@ defmodule MoulaxWeb.ImportController do
   end
 
   @doc """
+  POST /api/v1/imports/detect — Detect bank from CSV file without creating an import.
+  """
+  def detect(conn, params) do
+    with {:ok, {_filename, content}} <- extract_file(params) do
+      case Moulax.Parsers.detect_parser(content) do
+        {:ok, parser} ->
+          json(conn, %{data: %{detected_bank: parser.bank()}})
+
+        :error ->
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{status: "failed", error_details: [%{message: "Unknown CSV format"}]})
+      end
+    else
+      {:error, :no_file} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{errors: %{detail: "No CSV file provided"}})
+    end
+  end
+
+  @doc """
   GET /api/v1/accounts/:account_id/imports — List imports for account.
   """
   def index(conn, %{"account_id" => account_id}) do

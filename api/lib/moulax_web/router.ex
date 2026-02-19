@@ -20,6 +20,7 @@ defmodule MoulaxWeb.Router do
     resources "/transactions", TransactionController, only: [:show, :update, :delete]
 
     resources "/imports", ImportController, only: [:show]
+    post "/imports/detect", ImportController, :detect
 
     resources "/categorization-rules", CategorizationRuleController, except: [:new, :edit]
     post "/categorization-rules/apply", CategorizationRuleController, :apply

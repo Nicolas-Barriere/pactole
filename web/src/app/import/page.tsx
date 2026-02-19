@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, type DragEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
@@ -33,20 +33,23 @@ type Step = "account" | "upload" | "results";
 /* ── Page Component ──────────────────────────────────── */
 
 export default function ImportPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
 
   const preselectedAccountId = searchParams.get("account");
 
-  const [step, setStep] = useState<Step>("account");
+  const [step, setStep] = useState<Step>("upload");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
+  const [detecting, setDetecting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  const [detectedBank, setDetectedBank] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<Import | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -62,7 +65,7 @@ export default function ImportPage() {
         const exists = data.some((a) => a.id === preselectedAccountId);
         if (exists) {
           setSelectedAccountId(preselectedAccountId);
-          setStep("upload");
+          // Don't auto-set to upload, since upload is first now, unless we want to remember it.
         }
       }
     } catch {
@@ -80,7 +83,7 @@ export default function ImportPage() {
 
   /* ── File handling ───────────────────────────── */
 
-  function handleFileSelect(selectedFile: File | undefined) {
+  async function detectBankAndRoute(selectedFile: File | undefined) {
     if (!selectedFile) return;
 
     if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
@@ -95,6 +98,40 @@ export default function ImportPage() {
 
     setFile(selectedFile);
     setImportError(null);
+    setDetecting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const res = await api.upload<{ data: { detected_bank: string } }>("/imports/detect", formData);
+      const bank = res.data.detected_bank;
+      setDetectedBank(bank);
+
+      // Routing logic
+      const matchingAccounts = accounts.filter((a) => a.bank === bank);
+
+      if (matchingAccounts.length === 0) {
+        toast.info("Aucun compte trouvé pour cette banque. Veuillez le créer.");
+        router.push(`/accounts/new?bank=${bank}`);
+      } else if (matchingAccounts.length === 1) {
+        const accountId = matchingAccounts[0].id;
+        setSelectedAccountId(accountId);
+        await executeUpload(selectedFile, accountId);
+      } else {
+        // Multiple matches
+        setStep("account");
+      }
+    } catch (err) {
+      setFile(null);
+      if (err instanceof ApiError && err.status === 422) {
+        toast.error("Format CSV non reconnu ou banque non supportée");
+      } else {
+        toast.error("Erreur de connexion");
+      }
+    } finally {
+      setDetecting(false);
+    }
   }
 
   function handleDragOver(e: DragEvent) {
@@ -111,23 +148,21 @@ export default function ImportPage() {
     e.preventDefault();
     setDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
-    handleFileSelect(droppedFile);
+    detectBankAndRoute(droppedFile);
   }
 
   /* ── Upload ──────────────────────────────────── */
 
-  async function handleUpload() {
-    if (!file || !selectedAccountId) return;
-
+  async function executeUpload(fileToUpload: File, accountId: string) {
     try {
       setUploading(true);
       setImportError(null);
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToUpload);
 
       const result = await api.upload<Import>(
-        `/accounts/${selectedAccountId}/imports`,
+        `/accounts/${accountId}/imports`,
         formData,
       );
 
@@ -193,33 +228,32 @@ export default function ImportPage() {
       {/* ── Stepper ──────────────────────────────── */}
       <StepIndicator current={step} />
 
-      {/* ── Step 1: Account ──────────────────────── */}
-      {step === "account" && (
-        <AccountStep
-          accounts={accounts}
-          loading={accountsLoading}
-          selectedAccountId={selectedAccountId}
-          onSelect={setSelectedAccountId}
-          onContinue={handleAccountContinue}
-        />
-      )}
-
-      {/* ── Step 2: Upload ───────────────────────── */}
-      {step === "upload" && selectedAccount && (
+      {/* ── Step 1: Upload ───────────────────────── */}
+      {step === "upload" && (
         <UploadStep
-          account={selectedAccount}
           file={file}
           dragOver={dragOver}
-          uploading={uploading}
+          detecting={detecting}
           importError={importError}
           fileInputRef={fileInputRef}
-          onFileSelect={handleFileSelect}
+          onFileSelect={detectBankAndRoute}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onUpload={handleUpload}
+          onRetry={() => detectBankAndRoute(file || undefined)}
           onRemoveFile={() => { setFile(null); setImportError(null); }}
-          onBack={() => setStep("account")}
+        />
+      )}
+
+      {/* ── Step 2: Account ──────────────────────── */}
+      {step === "account" && (
+        <AccountStep
+          accounts={detectedBank ? accounts.filter((a) => a.bank === detectedBank) : accounts}
+          loading={accountsLoading}
+          selectedAccountId={selectedAccountId}
+          onSelect={setSelectedAccountId}
+          onContinue={() => file && selectedAccountId && executeUpload(file, selectedAccountId)}
+          onBack={() => setStep("upload")}
         />
       )}
 
@@ -239,8 +273,8 @@ export default function ImportPage() {
 /* ── Step Indicator ──────────────────────────────────── */
 
 const STEPS: { key: Step; label: string }[] = [
-  { key: "account", label: "Compte" },
   { key: "upload", label: "Fichier" },
+  { key: "account", label: "Compte" },
   { key: "results", label: "Résultat" },
 ];
 
@@ -257,31 +291,28 @@ function StepIndicator({ current }: { current: Step }) {
           <div key={s.key} className="flex items-center gap-2">
             {i > 0 && (
               <div
-                className={`h-px w-8 transition-colors ${
-                  isDone ? "bg-primary" : "bg-border"
-                }`}
+                className={`h-px w-8 transition-colors ${isDone ? "bg-primary" : "bg-border"
+                  }`}
               />
             )}
             <div className="flex items-center gap-2">
               <span
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary text-white"
-                    : isDone
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted/10 text-muted"
-                }`}
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${isActive
+                  ? "bg-primary text-white"
+                  : isDone
+                    ? "bg-primary/15 text-primary"
+                    : "bg-muted/10 text-muted"
+                  }`}
               >
                 {isDone ? <CheckIcon className="h-3.5 w-3.5" /> : i + 1}
               </span>
               <span
-                className={`text-sm font-medium ${
-                  isActive
-                    ? "text-foreground"
-                    : isDone
-                      ? "text-primary"
-                      : "text-muted"
-                }`}
+                className={`text-sm font-medium ${isActive
+                  ? "text-foreground"
+                  : isDone
+                    ? "text-primary"
+                    : "text-muted"
+                  }`}
               >
                 {s.label}
               </span>
@@ -301,12 +332,14 @@ function AccountStep({
   selectedAccountId,
   onSelect,
   onContinue,
+  onBack,
 }: {
   accounts: Account[];
   loading: boolean;
   selectedAccountId: string;
   onSelect: (id: string) => void;
   onContinue: () => void;
+  onBack: () => void;
 }) {
   if (loading) {
     return (
@@ -359,12 +392,12 @@ function AccountStep({
       </select>
 
       <div className="mt-4 flex items-center justify-between">
-        <Link
-          href="/accounts"
+        <button
+          onClick={onBack}
           className="text-sm text-muted hover:text-foreground"
         >
-          Gérer les comptes
-        </Link>
+          Retour au fichier
+        </button>
         <button
           onClick={onContinue}
           disabled={!selectedAccountId}
@@ -380,54 +413,32 @@ function AccountStep({
 /* ── Step 2: Upload ──────────────────────────────────── */
 
 function UploadStep({
-  account,
   file,
   dragOver,
-  uploading,
+  detecting,
   importError,
   fileInputRef,
   onFileSelect,
   onDragOver,
   onDragLeave,
   onDrop,
-  onUpload,
+  onRetry,
   onRemoveFile,
-  onBack,
 }: {
-  account: Account;
   file: File | null;
   dragOver: boolean;
-  uploading: boolean;
+  detecting: boolean;
   importError: string | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileSelect: (file: File | undefined) => void;
   onDragOver: (e: DragEvent) => void;
   onDragLeave: (e: DragEvent) => void;
   onDrop: (e: DragEvent) => void;
-  onUpload: () => void;
+  onRetry: () => void;
   onRemoveFile: () => void;
-  onBack: () => void;
 }) {
   return (
     <div className="space-y-4">
-      {/* Account reminder */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-3">
-          <BankIcon className="h-5 w-5 text-muted" />
-          <div>
-            <p className="text-sm font-medium">{account.name}</p>
-            <p className="text-xs text-muted">
-              {BANK_LABELS[account.bank] ?? account.bank} · {account.currency}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onBack}
-          className="text-sm text-muted hover:text-foreground"
-        >
-          Changer
-        </button>
-      </div>
 
       {/* Drop zone */}
       <div
@@ -435,13 +446,12 @@ function UploadStep({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onClick={() => !file && fileInputRef.current?.click()}
-        className={`relative rounded-xl border-2 border-dashed transition-colors ${
-          dragOver
-            ? "border-primary bg-primary/5"
-            : file
-              ? "border-border bg-card"
-              : "cursor-pointer border-border bg-card hover:border-primary/50 hover:bg-card-hover"
-        } p-8`}
+        className={`relative rounded-xl border-2 border-dashed transition-colors ${dragOver
+          ? "border-primary bg-primary/5"
+          : file
+            ? "border-border bg-card"
+            : "cursor-pointer border-border bg-card hover:border-primary/50 hover:bg-card-hover"
+          } p-8`}
       >
         <input
           ref={fileInputRef}
@@ -502,7 +512,7 @@ function UploadStep({
             <div>
               <p className="text-sm font-medium text-danger">{importError}</p>
               <button
-                onClick={onUpload}
+                onClick={onRetry}
                 className="mt-2 text-sm font-medium text-primary hover:text-primary-hover"
               >
                 Réessayer
@@ -512,26 +522,27 @@ function UploadStep({
         </div>
       )}
 
-      {/* Upload button */}
+      {/* Status indicator */}
       {file && (
         <div className="flex justify-end">
-          <button
-            onClick={onUpload}
-            disabled={uploading}
-            className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+          <div
+            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors cursor-default ${detecting ? "bg-primary" : "bg-success"
+              }`}
           >
-            {uploading ? (
+            {detecting ? (
               <>
                 <SpinnerIcon className="h-4 w-4 animate-spin" />
-                Import en cours…
+                Détection de la banque…
               </>
+            ) : importError ? (
+              <span className="text-danger">Erreur</span>
             ) : (
               <>
-                <UploadIcon className="h-4 w-4" />
-                Importer
+                <CheckIcon className="h-4 w-4" />
+                Fichier analysé
               </>
             )}
-          </button>
+          </div>
         </div>
       )}
     </div>
@@ -559,13 +570,12 @@ function ResultsStep({
     <div className="space-y-4">
       {/* Status banner */}
       <div
-        className={`rounded-xl border p-6 ${
-          isFailed
-            ? "border-danger/30 bg-danger/5"
-            : hasErrors
-              ? "border-warning/30 bg-warning/5"
-              : "border-success/30 bg-success/5"
-        }`}
+        className={`rounded-xl border p-6 ${isFailed
+          ? "border-danger/30 bg-danger/5"
+          : hasErrors
+            ? "border-warning/30 bg-warning/5"
+            : "border-success/30 bg-success/5"
+          }`}
       >
         <div className="flex items-start gap-4">
           {isFailed ? (
@@ -577,13 +587,12 @@ function ResultsStep({
           )}
           <div>
             <h2
-              className={`text-lg font-semibold ${
-                isFailed
-                  ? "text-danger"
-                  : hasErrors
-                    ? "text-warning"
-                    : "text-success"
-              }`}
+              className={`text-lg font-semibold ${isFailed
+                ? "text-danger"
+                : hasErrors
+                  ? "text-warning"
+                  : "text-success"
+                }`}
             >
               {isFailed
                 ? "Import échoué"

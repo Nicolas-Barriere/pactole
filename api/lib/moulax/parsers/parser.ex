@@ -25,4 +25,9 @@ defmodule Moulax.Parsers.Parser do
   Parses CSV content into a list of transaction attribute maps.
   """
   @callback parse(binary()) :: {:ok, [parsed_row()]} | {:error, [ParseError.t()]}
+
+  @doc """
+  Returns the identifier of the bank for this parser.
+  """
+  @callback bank() :: String.t()
 end

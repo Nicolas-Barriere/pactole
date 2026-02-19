@@ -17,6 +17,9 @@ defmodule Moulax.Parsers.CaisseDepargne do
   @required_headers ["Date", "Numéro d'opération", "Libellé", "Débit", "Crédit"]
 
   @impl true
+  def bank, do: "caisse_depargne"
+
+  @impl true
   def detect?(content) when is_binary(content) do
     case first_line(content) do
       nil ->
@@ -166,7 +169,11 @@ defmodule Moulax.Parsers.CaisseDepargne do
   end
 
   defp parse_decimal(str, direction, row_idx) do
-    normalized = str |> String.replace(",", ".") |> String.replace("+", "")
+    normalized =
+      str
+      |> String.replace(~r/\s+/, "")
+      |> String.replace(",", ".")
+      |> String.replace("+", "")
 
     case Decimal.parse(normalized) do
       {decimal, ""} ->

@@ -152,6 +152,80 @@ defmodule MoulaxWeb.ImportControllerTest do
     end
   end
 
+  describe "detect POST /api/v1/imports/detect" do
+    test "detects Boursorama bank from CSV file", %{conn: conn} do
+      csv_path = Path.join([__DIR__, "..", "..", "fixtures", "boursorama_valid.csv"])
+
+      upload = %Plug.Upload{
+        path: csv_path,
+        filename: "boursorama_feb_2026.csv",
+        content_type: "text/csv"
+      }
+
+      conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})
+      data = json_response(conn, 200)
+
+      assert data["data"]["detected_bank"] == "boursorama"
+    end
+
+    test "detects Revolut bank from CSV file", %{conn: conn} do
+      csv_path = Path.join([__DIR__, "..", "..", "fixtures", "revolut_valid.csv"])
+
+      upload = %Plug.Upload{
+        path: csv_path,
+        filename: "revolut.csv",
+        content_type: "text/csv"
+      }
+
+      conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})
+      data = json_response(conn, 200)
+
+      assert data["data"]["detected_bank"] == "revolut"
+    end
+
+    test "detects Caisse d'Epargne bank from CSV file", %{conn: conn} do
+      csv_path = Path.join([__DIR__, "..", "..", "fixtures", "ce_valid.csv"])
+
+      upload = %Plug.Upload{
+        path: csv_path,
+        filename: "ce.csv",
+        content_type: "text/csv"
+      }
+
+      conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})
+      data = json_response(conn, 200)
+
+      assert data["data"]["detected_bank"] == "caisse_depargne"
+    end
+
+    test "returns 422 for unknown CSV format", %{conn: conn} do
+      tmp_path = Path.join(System.tmp_dir!(), "unknown_detect_#{System.unique_integer([:positive])}.csv")
+      File.write!(tmp_path, "foo,bar,baz\n1,2,3\n")
+
+      upload = %Plug.Upload{
+        path: tmp_path,
+        filename: "unknown.csv",
+        content_type: "text/csv"
+      }
+
+      conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})
+      data = json_response(conn, 422)
+
+      assert data["status"] == "failed"
+      assert [%{"message" => msg} | _] = data["error_details"]
+      assert msg =~ "Unknown CSV format"
+    after
+      File.rm(Path.join(System.tmp_dir!(), "unknown_detect_*.csv"))
+    end
+
+    test "returns 400 when no file is provided", %{conn: conn} do
+      conn = post(conn, ~p"/api/v1/imports/detect", %{})
+      data = json_response(conn, 400)
+
+      assert data["errors"]["detail"] == "No CSV file provided"
+    end
+  end
+
   describe "show GET /api/v1/imports/:id" do
     test "returns import details", %{conn: conn, account: account} do
       {:ok, import_record} = Moulax.Imports.create_import(account.id, "test.csv")
