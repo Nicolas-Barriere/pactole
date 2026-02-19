@@ -98,20 +98,40 @@ export interface Import {
 
 export interface DashboardSummary {
   net_worth: string;
-  accounts: Pick<Account, "id" | "name" | "bank" | "type" | "balance" | "currency" | "last_import_at">[];
+  currency: string;
+  accounts: {
+    id: string;
+    name: string;
+    bank: string;
+    type: AccountType;
+    balance: string;
+    last_import_at: string | null;
+  }[];
 }
 
-export interface SpendingByCategory {
-  category_id: string;
-  category_name: string;
-  category_color: string;
-  total: string;
+export interface SpendingCategory {
+  category: string;
+  color: string;
+  amount: string;
+  percentage: number;
+}
+
+export interface DashboardSpending {
+  month: string;
+  total_expenses: string;
+  total_income: string;
+  by_category: SpendingCategory[];
 }
 
 export interface MonthlyTrend {
-  month: string; // "2026-01"
+  month: string;
   income: string;
   expenses: string;
+  net: string;
+}
+
+export interface DashboardTrends {
+  months: MonthlyTrend[];
 }
 
 export interface TopExpense {
@@ -119,7 +139,13 @@ export interface TopExpense {
   date: string;
   label: string;
   amount: string;
-  category_name: string | null;
+  category: string;
+  account: string;
+}
+
+export interface DashboardTopExpenses {
+  month: string;
+  expenses: TopExpense[];
 }
 
 /* ── Paginated Response ──────────────────────────────── */
