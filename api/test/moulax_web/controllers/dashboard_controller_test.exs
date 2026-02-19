@@ -1,12 +1,6 @@
 defmodule MoulaxWeb.DashboardControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Accounts.Account
-  alias Moulax.Transactions.Transaction
-  alias Moulax.Categories.Category
-  alias Moulax.Imports.Import
-  alias Moulax.Repo
-
   # ---------------------------------------------------------------------------
   # GET /api/v1/dashboard/summary
   # ---------------------------------------------------------------------------
@@ -29,11 +23,28 @@ defmodule MoulaxWeb.DashboardControllerTest do
           initial_balance: "500.00"
         })
 
-      insert_tx(a1.id, "2026-02-01", "Salary", "2500.00")
-      insert_tx(a1.id, "2026-02-05", "Groceries", "-150.00")
-      insert_tx(a2.id, "2026-02-01", "Transfer", "1000.00")
+      insert_transaction(%{
+        account_id: a1.id,
+        date: ~D[2026-02-01],
+        label: "Salary",
+        amount: Decimal.new("2500.00")
+      })
 
-      insert_import(a1.id, "completed")
+      insert_transaction(%{
+        account_id: a1.id,
+        date: ~D[2026-02-05],
+        label: "Groceries",
+        amount: Decimal.new("-150.00")
+      })
+
+      insert_transaction(%{
+        account_id: a2.id,
+        date: ~D[2026-02-01],
+        label: "Transfer",
+        amount: Decimal.new("1000.00")
+      })
+
+      insert_import(%{account_id: a1.id, status: "completed"})
 
       data =
         conn
@@ -59,7 +70,13 @@ defmodule MoulaxWeb.DashboardControllerTest do
     test "excludes archived accounts", %{conn: conn} do
       _archived = insert_account(%{name: "Archived", archived: true, initial_balance: "9999.00"})
       active = insert_account(%{name: "Active"})
-      insert_tx(active.id, "2026-02-01", "Deposit", "100.00")
+
+      insert_transaction(%{
+        account_id: active.id,
+        date: ~D[2026-02-01],
+        label: "Deposit",
+        amount: Decimal.new("100.00")
+      })
 
       data =
         conn
@@ -88,13 +105,38 @@ defmodule MoulaxWeb.DashboardControllerTest do
   describe "GET /api/v1/dashboard/spending" do
     test "returns spending breakdown by category for a month", %{conn: conn} do
       account = insert_account()
-      food = insert_category("Alimentation", "#4CAF50")
-      transport = insert_category("Transport", "#2196F3")
+      food = insert_category(%{name: "Alimentation", color: "#4CAF50"})
+      transport = insert_category(%{name: "Transport", color: "#2196F3"})
 
-      insert_tx(account.id, "2026-02-01", "Salary", "2500.00")
-      insert_tx(account.id, "2026-02-05", "Groceries", "-200.00", food.id)
-      insert_tx(account.id, "2026-02-06", "Metro", "-50.00", transport.id)
-      insert_tx(account.id, "2026-02-07", "Unknown shop", "-100.00")
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Salary",
+        amount: Decimal.new("2500.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-05],
+        label: "Groceries",
+        amount: Decimal.new("-200.00"),
+        category_id: food.id
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-06],
+        label: "Metro",
+        amount: Decimal.new("-50.00"),
+        category_id: transport.id
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-07],
+        label: "Unknown shop",
+        amount: Decimal.new("-100.00")
+      })
 
       data =
         conn
@@ -120,8 +162,19 @@ defmodule MoulaxWeb.DashboardControllerTest do
       archived = insert_account(%{name: "Archived", archived: true})
       active = insert_account(%{name: "Active"})
 
-      insert_tx(archived.id, "2026-02-01", "Ghost", "-500.00")
-      insert_tx(active.id, "2026-02-01", "Real", "-100.00")
+      insert_transaction(%{
+        account_id: archived.id,
+        date: ~D[2026-02-01],
+        label: "Ghost",
+        amount: Decimal.new("-500.00")
+      })
+
+      insert_transaction(%{
+        account_id: active.id,
+        date: ~D[2026-02-01],
+        label: "Real",
+        amount: Decimal.new("-100.00")
+      })
 
       data =
         conn
@@ -156,10 +209,33 @@ defmodule MoulaxWeb.DashboardControllerTest do
       this_date = date_string(this_y, this_m, 15)
       prev_date = date_string(prev_y, prev_m, 15)
 
-      insert_tx(account.id, prev_date, "Prev Salary", "2500.00")
-      insert_tx(account.id, prev_date, "Prev Rent", "-850.00")
-      insert_tx(account.id, this_date, "Curr Salary", "2500.00")
-      insert_tx(account.id, this_date, "Curr Rent", "-900.00")
+      insert_transaction(%{
+        account_id: account.id,
+        date: Date.from_iso8601!(prev_date),
+        label: "Prev Salary",
+        amount: Decimal.new("2500.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: Date.from_iso8601!(prev_date),
+        label: "Prev Rent",
+        amount: Decimal.new("-850.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: Date.from_iso8601!(this_date),
+        label: "Curr Salary",
+        amount: Decimal.new("2500.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: Date.from_iso8601!(this_date),
+        label: "Curr Rent",
+        amount: Decimal.new("-900.00")
+      })
 
       data =
         conn
@@ -201,8 +277,19 @@ defmodule MoulaxWeb.DashboardControllerTest do
       {y, m} = current_year_month()
       d = date_string(y, m, 10)
 
-      insert_tx(archived.id, d, "Ghost income", "1000.00")
-      insert_tx(active.id, d, "Real income", "500.00")
+      insert_transaction(%{
+        account_id: archived.id,
+        date: Date.from_iso8601!(d),
+        label: "Ghost income",
+        amount: Decimal.new("1000.00")
+      })
+
+      insert_transaction(%{
+        account_id: active.id,
+        date: Date.from_iso8601!(d),
+        label: "Real income",
+        amount: Decimal.new("500.00")
+      })
 
       data =
         conn
@@ -221,12 +308,36 @@ defmodule MoulaxWeb.DashboardControllerTest do
   describe "GET /api/v1/dashboard/top-expenses" do
     test "returns top N expenses ordered by amount for a month", %{conn: conn} do
       account = insert_account(%{name: "My Account"})
-      housing = insert_category("Logement", "#FF5722")
+      housing = insert_category(%{name: "Logement", color: "#FF5722"})
 
-      insert_tx(account.id, "2026-02-05", "LOYER", "-850.00", housing.id)
-      insert_tx(account.id, "2026-02-10", "Groceries", "-200.00")
-      insert_tx(account.id, "2026-02-15", "Metro", "-50.00")
-      insert_tx(account.id, "2026-02-01", "Salary", "2500.00")
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-05],
+        label: "LOYER",
+        amount: Decimal.new("-850.00"),
+        category_id: housing.id
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-10],
+        label: "Groceries",
+        amount: Decimal.new("-200.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-15],
+        label: "Metro",
+        amount: Decimal.new("-50.00")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Salary",
+        amount: Decimal.new("2500.00")
+      })
 
       data =
         conn
@@ -260,8 +371,19 @@ defmodule MoulaxWeb.DashboardControllerTest do
       archived = insert_account(%{name: "Archived", archived: true})
       active = insert_account(%{name: "Active"})
 
-      insert_tx(archived.id, "2026-02-01", "Ghost expense", "-999.00")
-      insert_tx(active.id, "2026-02-01", "Real expense", "-100.00")
+      insert_transaction(%{
+        account_id: archived.id,
+        date: ~D[2026-02-01],
+        label: "Ghost expense",
+        amount: Decimal.new("-999.00")
+      })
+
+      insert_transaction(%{
+        account_id: active.id,
+        date: ~D[2026-02-01],
+        label: "Real expense",
+        amount: Decimal.new("-100.00")
+      })
 
       data =
         conn
@@ -274,41 +396,8 @@ defmodule MoulaxWeb.DashboardControllerTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Helpers
+  # Private helpers
   # ---------------------------------------------------------------------------
-
-  defp insert_account(attrs \\ %{}) do
-    defaults = %{name: "Test Account", bank: "test", type: "checking"}
-
-    %Account{}
-    |> Account.changeset(Map.merge(defaults, attrs))
-    |> Repo.insert!()
-  end
-
-  defp insert_category(name, color) do
-    %Category{name: name, color: color}
-    |> Repo.insert!()
-  end
-
-  defp insert_tx(account_id, date_str, label, amount_str, category_id \\ nil) do
-    %Transaction{}
-    |> Transaction.changeset(%{
-      account_id: account_id,
-      date: Date.from_iso8601!(date_str),
-      label: label,
-      original_label: label,
-      amount: Decimal.new(amount_str),
-      source: "manual",
-      category_id: category_id
-    })
-    |> Repo.insert!()
-  end
-
-  defp insert_import(account_id, status) do
-    %Import{}
-    |> Import.changeset(%{account_id: account_id, filename: "test.csv", status: status})
-    |> Repo.insert!()
-  end
 
   defp current_year_month do
     today = Date.utc_today()

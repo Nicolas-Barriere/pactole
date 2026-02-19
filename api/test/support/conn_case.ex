@@ -28,6 +28,7 @@ defmodule MoulaxWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import MoulaxWeb.ConnCase
+      import Moulax.Factory
     end
   end
 

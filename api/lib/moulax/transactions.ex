@@ -128,7 +128,13 @@ defmodule Moulax.Transactions do
         query
 
       term ->
-        pattern = "%#{String.replace(term, "%", "\\%")}%"
+        escaped =
+          term
+          |> String.replace("\\", "\\\\")
+          |> String.replace("%", "\\%")
+          |> String.replace("_", "\\_")
+
+        pattern = "%#{escaped}%"
         where(query, [t], ilike(t.label, ^pattern))
     end
   end

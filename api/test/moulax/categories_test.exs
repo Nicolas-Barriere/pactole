@@ -3,7 +3,7 @@ defmodule Moulax.CategoriesTest do
 
   alias Moulax.Categories
   alias Moulax.Categories.Category
-  alias Moulax.Repo
+  alias Moulax.Transactions.Transaction
 
   describe "list_categories/0" do
     test "returns all categories ordered by name" do
@@ -106,47 +106,27 @@ defmodule Moulax.CategoriesTest do
       cat = insert_category(%{name: "Food", color: "#4CAF50"})
       account = insert_account()
 
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      {1, _} =
-        Repo.insert_all("transactions", [
-          %{
-            id: Ecto.UUID.bingenerate(),
-            account_id: Ecto.UUID.dump!(account.id),
-            date: ~D[2026-01-15],
-            label: "Grocery",
-            original_label: "Grocery",
-            amount: Decimal.new("42.50"),
-            currency: "EUR",
-            category_id: Ecto.UUID.dump!(cat.id),
-            source: "manual",
-            inserted_at: now,
-            updated_at: now
-          }
-        ])
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          label: "Grocery",
+          amount: Decimal.new("42.50"),
+          category_id: cat.id
+        })
 
       assert {:ok, _} = Categories.delete_category(cat)
 
-      [tx] = Repo.all(from(t in "transactions", select: %{category_id: t.category_id}))
-      assert tx.category_id == nil
+      updated_tx = Repo.get!(Transaction, tx.id)
+      assert updated_tx.category_id == nil
     end
-  end
 
-  defp insert_category(attrs) do
-    %Category{}
-    |> Category.changeset(attrs)
-    |> Repo.insert!()
-  end
+    test "raises ConstraintError when category has linked categorization rules" do
+      cat = insert_category(%{name: "WithRules", color: "#FF0000"})
+      insert_rule(%{keyword: "SPOTIFY", category_id: cat.id, priority: 5})
 
-  defp insert_account do
-    alias Moulax.Accounts.Account
-
-    %Account{}
-    |> Account.changeset(%{
-      "name" => "Test Account",
-      "bank" => "test",
-      "type" => "checking"
-    })
-    |> Repo.insert!()
+      assert_raise Ecto.ConstraintError, fn ->
+        Categories.delete_category(cat)
+      end
+    end
   end
 end

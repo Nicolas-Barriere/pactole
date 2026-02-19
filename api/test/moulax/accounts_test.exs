@@ -3,7 +3,6 @@ defmodule Moulax.AccountsTest do
 
   alias Moulax.Accounts
   alias Moulax.Accounts.Account
-  alias Moulax.Repo
 
   describe "list_accounts/0" do
     test "returns only non-archived accounts" do
@@ -45,8 +44,52 @@ defmodule Moulax.AccountsTest do
       assert account.transaction_count == 0
     end
 
+    test "balance equals initial_balance plus sum of transaction amounts" do
+      account =
+        insert_account(%{name: "Savings", bank: "b", type: "savings", initial_balance: "1000"})
+
+      insert_transaction(%{account_id: account.id, amount: Decimal.new("500"), source: "manual"})
+      insert_transaction(%{account_id: account.id, amount: Decimal.new("-200"), source: "manual"})
+
+      assert {:ok, enriched} = Accounts.get_account(account.id)
+      # 1000 + 500 - 200 = 1300
+      assert enriched.balance == "1300"
+      assert enriched.transaction_count == 2
+    end
+
+    test "last_import_at reflects the most recent completed import" do
+      account = insert_account(%{name: "Test", bank: "boursorama", type: "checking"})
+      insert_import(%{account_id: account.id, status: "completed"})
+
+      assert {:ok, enriched} = Accounts.get_account(account.id)
+      assert enriched.last_import_at != nil
+    end
+
+    test "last_import_at ignores non-completed imports" do
+      account = insert_account(%{name: "Test", bank: "b", type: "checking"})
+      insert_import(%{account_id: account.id, status: "pending"})
+      insert_import(%{account_id: account.id, status: "failed"})
+
+      assert {:ok, enriched} = Accounts.get_account(account.id)
+      assert enriched.last_import_at == nil
+    end
+
     test "returns error when not found" do
       assert {:error, :not_found} = Accounts.get_account(Ecto.UUID.generate())
+    end
+  end
+
+  describe "fetch_account/1" do
+    test "returns ok with raw account struct when found" do
+      account = insert_account(%{name: "Test", bank: "b", type: "checking"})
+
+      assert {:ok, found} = Accounts.fetch_account(account.id)
+      assert found.id == account.id
+      assert %Account{} = found
+    end
+
+    test "returns not_found when account does not exist" do
+      assert {:error, :not_found} = Accounts.fetch_account(Ecto.UUID.generate())
     end
   end
 
@@ -116,25 +159,5 @@ defmodule Moulax.AccountsTest do
     test "returns not_found when archiving non-existent id" do
       assert {:error, :not_found} = Accounts.archive_account(Ecto.UUID.generate())
     end
-  end
-
-  defp insert_account(attrs) do
-    defaults = %{
-      "name" => "Account",
-      "bank" => "bank",
-      "type" => "checking",
-      "initial_balance" => Decimal.new(0),
-      "currency" => "EUR",
-      "archived" => false
-    }
-
-    attrs =
-      attrs
-      |> Map.new(fn {k, v} -> {to_string(k), v} end)
-      |> then(&Map.merge(defaults, &1))
-
-    %Account{}
-    |> Account.changeset(attrs)
-    |> Repo.insert!()
   end
 end

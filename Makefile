@@ -53,7 +53,7 @@ logs.db: ## Follow database logs only
 test: test.backend ## Run all tests
 
 test.backend: ## Run backend (Elixir) tests
-	docker compose exec backend mix test
+	docker compose exec -e MIX_ENV=test backend mix test
 
 test.web: ## Run frontend (Next.js) linter
 	docker compose exec web pnpm lint

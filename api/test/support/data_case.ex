@@ -24,6 +24,7 @@ defmodule Moulax.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Moulax.DataCase
+      import Moulax.Factory
     end
   end
 

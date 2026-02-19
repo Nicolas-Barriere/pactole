@@ -1,0 +1,5 @@
+dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance
+2026-02-10;2026-02-10;"Carrefour | CARTE 10/02/26 CARREFOUR CB*1234";"Alimentation";"Alimentation & Restauration";"carrefour";-45,32;;00012345678;BoursoBank;1500.00
+2026-02-09;2026-02-09;"Employeur SA | VIR SEPA EMPLOYEUR SA";"Virements reçus";"Virements reçus";"employeur";2500,00;;00012345678;BoursoBank;1545.32
+2026-02-15;2026-02-15;"Amazon | CARTE 15/02/26 AMAZON.FR CB*1234";"Shopping";"Shopping";"amazon";-29,99;;00012345678;BoursoBank;1515.33
+2026-02-14;2026-02-14;"MAIF | PRLV SEPA MAIF ASSURANCE";"Assurance";"Assurance";"maif";-45,00;;00012345678;BoursoBank;1470.33

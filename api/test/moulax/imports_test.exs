@@ -3,18 +3,10 @@ defmodule Moulax.ImportsTest do
 
   alias Moulax.Imports
   alias Moulax.Imports.Import
-  alias Moulax.Accounts.Account
-  alias Moulax.Categories.Category
-  alias Moulax.Categories.CategorizationRule
   alias Moulax.Transactions.Transaction
 
   setup do
-    account =
-      %Account{}
-      |> Account.changeset(%{name: "Test Account", bank: "boursorama", type: "checking"})
-      |> Repo.insert!()
-
-    %{account: account}
+    %{account: insert_account(%{name: "Test Account", bank: "boursorama", type: "checking"})}
   end
 
   describe "create_import/2" do
@@ -47,31 +39,50 @@ defmodule Moulax.ImportsTest do
       assert Enum.all?(txs, &(&1.source == "csv_import"))
     end
 
-    test "applies categorization rules during import", %{account: account} do
-      category =
-        %Category{name: "Groceries", color: "#22c55e"}
-        |> Repo.insert!()
+    test "applies categorization rules during import — highest priority wins", %{account: account} do
+      groceries = insert_category(%{name: "Groceries", color: "#22c55e"})
+      transport = insert_category(%{name: "Transport", color: "#3b82f6"})
+      restaurants = insert_category(%{name: "Restaurants", color: "#ef4444"})
 
-      %CategorizationRule{}
-      |> CategorizationRule.changeset(%{
-        keyword: "carrefour",
-        category_id: category.id,
-        priority: 10
-      })
-      |> Repo.insert!()
+      # The Boursorama parser extracts the supplier as the cleaned label (before " | ").
+      # Row 1 cleaned label: "Carrefour" — matches both "carrefour" (p10) and "carre" (p5).
+      # Groceries wins because priority 10 > 5.
+      insert_rule(%{keyword: "carrefour", category_id: groceries.id, priority: 10})
+      insert_rule(%{keyword: "carre", category_id: transport.id, priority: 5})
+
+      # Row 3 cleaned label: "Le Petit Paris" — matches "paris" → restaurants
+      insert_rule(%{keyword: "paris", category_id: restaurants.id, priority: 8})
 
       csv = File.read!(Path.join([__DIR__, "..", "fixtures", "boursorama_valid.csv"]))
       {:ok, import_record} = Imports.create_import(account.id, "boursorama.csv")
-
       assert {:ok, _result} = Imports.process_import(import_record, csv)
 
-      tx =
+      # Row 1 cleaned label "Carrefour" — highest priority rule wins
+      carrefour_tx =
         Repo.one!(
           from t in Transaction,
-            where: t.account_id == ^account.id and ilike(t.label, "%CARREFOUR%")
+            where: t.account_id == ^account.id and ilike(t.label, "%Carrefour%")
         )
 
-      assert tx.category_id == category.id
+      assert carrefour_tx.category_id == groceries.id
+
+      # Row 3 cleaned label "Le Petit Paris" — matches "paris" rule
+      restaurant_tx =
+        Repo.one!(
+          from t in Transaction,
+            where: t.account_id == ^account.id and ilike(t.label, "%Petit Paris%")
+        )
+
+      assert restaurant_tx.category_id == restaurants.id
+
+      # Row 4 cleaned label "Free" — no matching rule → uncategorized
+      free_tx =
+        Repo.one!(
+          from t in Transaction,
+            where: t.account_id == ^account.id and ilike(t.label, "%Free%")
+        )
+
+      assert free_tx.category_id == nil
     end
 
     test "deduplicates — importing same file twice skips all rows", %{account: account} do
@@ -86,6 +97,28 @@ defmodule Moulax.ImportsTest do
       assert result2.rows_imported == 0
       assert result2.rows_skipped == 4
     end
+
+    test "deduplicates across partial overlap — imports only new rows", %{account: account} do
+      # First import: all 4 rows from boursorama_valid.csv
+      csv_full = File.read!(Path.join([__DIR__, "..", "fixtures", "boursorama_valid.csv"]))
+      {:ok, import1} = Imports.create_import(account.id, "full.csv")
+      assert {:ok, result1} = Imports.process_import(import1, csv_full)
+      assert result1.rows_imported == 4
+
+      # Second import: partial overlap — rows 1,2 are duplicates; rows 3,4 are new
+      csv_overlap =
+        File.read!(Path.join([__DIR__, "..", "fixtures", "boursorama_partial_overlap.csv"]))
+
+      {:ok, import2} = Imports.create_import(account.id, "overlap.csv")
+      assert {:ok, result2} = Imports.process_import(import2, csv_overlap)
+      assert result2.rows_imported == 2
+      assert result2.rows_skipped == 2
+      assert result2.rows_errored == 0
+
+      # Total transactions in DB should be 6 (4 original + 2 new)
+      total = Repo.aggregate(from(t in Transaction, where: t.account_id == ^account.id), :count)
+      assert total == 6
+    end
   end
 
   describe "process_import/2 with Revolut CSV" do
@@ -97,6 +130,20 @@ defmodule Moulax.ImportsTest do
 
       assert result.status == "completed"
       assert result.rows_imported > 0
+    end
+
+    test "Revolut fee transactions are not considered duplicates of parent", %{account: account} do
+      csv = File.read!(Path.join([__DIR__, "..", "fixtures", "revolut_with_fees.csv"]))
+      {:ok, import1} = Imports.create_import(account.id, "revolut_fees.csv")
+      assert {:ok, result1} = Imports.process_import(import1, csv)
+      first_import_count = result1.rows_imported
+      assert first_import_count > 0
+
+      {:ok, import2} = Imports.create_import(account.id, "revolut_fees2.csv")
+      assert {:ok, result2} = Imports.process_import(import2, csv)
+      # Second import should skip all rows (deduplication), not fail
+      assert result2.rows_skipped == first_import_count
+      assert result2.rows_imported == 0
     end
   end
 
