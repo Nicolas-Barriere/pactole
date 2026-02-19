@@ -1,16 +1,8 @@
 defmodule MoulaxWeb.ImportControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Accounts.Account
-  alias Moulax.Repo
-
   setup do
-    account =
-      %Account{}
-      |> Account.changeset(%{name: "Test", bank: "boursorama", type: "checking"})
-      |> Repo.insert!()
-
-    %{account: account}
+    %{account: insert_account(%{name: "Test", bank: "boursorama", type: "checking"})}
   end
 
   describe "create POST /api/v1/accounts/:account_id/imports" do

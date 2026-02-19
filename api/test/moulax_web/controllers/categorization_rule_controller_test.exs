@@ -1,10 +1,6 @@
 defmodule MoulaxWeb.CategorizationRuleControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Categories.CategorizationRule
-  alias Moulax.Categories.Category
-  alias Moulax.Repo
-
   @create_attrs %{
     "keyword" => "SNCF",
     "category_id" => nil,
@@ -20,7 +16,7 @@ defmodule MoulaxWeb.CategorizationRuleControllerTest do
 
   describe "index" do
     test "lists all categorization rules", %{conn: conn, category: cat} do
-      _rule = insert_rule("SNCF", cat.id, 10)
+      insert_rule(%{keyword: "SNCF", category_id: cat.id, priority: 10})
 
       conn = get(conn, ~p"/api/v1/categorization-rules")
       data = json_response(conn, 200)
@@ -36,6 +32,26 @@ defmodule MoulaxWeb.CategorizationRuleControllerTest do
     test "returns empty list when no rules", %{conn: conn} do
       conn = get(conn, ~p"/api/v1/categorization-rules")
       assert json_response(conn, 200) == []
+    end
+  end
+
+  describe "show" do
+    test "returns rule when found", %{conn: conn, category: cat} do
+      rule = insert_rule(%{keyword: "SNCF", category_id: cat.id, priority: 10})
+
+      conn = get(conn, ~p"/api/v1/categorization-rules/#{rule.id}")
+      data = json_response(conn, 200)
+
+      assert data["id"] == rule.id
+      assert data["keyword"] == "SNCF"
+      assert data["priority"] == 10
+      assert data["category"]["id"] == cat.id
+      assert data["category"]["name"] == "Transport"
+    end
+
+    test "returns 404 when rule not found", %{conn: conn} do
+      conn = get(conn, ~p"/api/v1/categorization-rules/#{Ecto.UUID.generate()}")
+      assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
   end
 
@@ -61,7 +77,7 @@ defmodule MoulaxWeb.CategorizationRuleControllerTest do
 
   describe "update" do
     test "updates rule when data is valid", %{conn: conn, category: cat} do
-      rule = insert_rule("SNCF", cat.id, 5)
+      rule = insert_rule(%{keyword: "SNCF", category_id: cat.id, priority: 5})
 
       conn = put(conn, ~p"/api/v1/categorization-rules/#{rule.id}", @update_attrs)
       data = json_response(conn, 200)
@@ -78,7 +94,7 @@ defmodule MoulaxWeb.CategorizationRuleControllerTest do
 
   describe "delete" do
     test "deletes rule", %{conn: conn, category: cat} do
-      rule = insert_rule("SNCF", cat.id, 10)
+      rule = insert_rule(%{keyword: "SNCF", category_id: cat.id, priority: 10})
 
       conn = delete(conn, ~p"/api/v1/categorization-rules/#{rule.id}")
       assert response(conn, 204)
@@ -91,20 +107,5 @@ defmodule MoulaxWeb.CategorizationRuleControllerTest do
       conn = delete(conn, ~p"/api/v1/categorization-rules/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
-  end
-
-  defp insert_category(attrs) do
-    %Category{name: attrs.name, color: attrs.color}
-    |> Repo.insert!()
-  end
-
-  defp insert_rule(keyword, category_id, priority) do
-    %CategorizationRule{}
-    |> CategorizationRule.changeset(%{
-      keyword: keyword,
-      category_id: category_id,
-      priority: priority
-    })
-    |> Repo.insert!()
   end
 end

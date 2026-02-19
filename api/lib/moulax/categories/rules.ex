@@ -49,6 +49,17 @@ defmodule Moulax.Categories.Rules do
   end
 
   @doc """
+  Gets a single rule by ID with category preloaded and formatted.
+  Returns `{:ok, rule_map}` or `{:error, :not_found}`.
+  """
+  def get_rule(id) do
+    case Repo.get(CategorizationRule, id) do
+      nil -> {:error, :not_found}
+      rule -> {:ok, rule_to_response(Repo.preload(rule, :category))}
+    end
+  end
+
+  @doc """
   Fetches a single rule by ID. Returns `{:ok, rule}` or `{:error, :not_found}`.
   """
   def fetch_rule(id) do

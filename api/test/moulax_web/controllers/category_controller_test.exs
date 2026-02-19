@@ -1,9 +1,6 @@
 defmodule MoulaxWeb.CategoryControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Categories.Category
-  alias Moulax.Repo
-
   @create_attrs %{"name" => "Alimentation", "color" => "#4CAF50"}
   @update_attrs %{"name" => "Updated Name", "color" => "#FF0000"}
   @invalid_attrs %{"name" => nil, "color" => nil}
@@ -38,7 +35,7 @@ defmodule MoulaxWeb.CategoryControllerTest do
     end
 
     test "renders errors for duplicate name", %{conn: conn} do
-      insert_category()
+      insert_category(%{name: "Alimentation", color: "#4CAF50"})
 
       conn = post(conn, ~p"/api/v1/categories", @create_attrs)
       assert json_response(conn, 422)["errors"]["name"] != nil
@@ -47,7 +44,7 @@ defmodule MoulaxWeb.CategoryControllerTest do
 
   describe "show category" do
     test "renders category when found", %{conn: conn} do
-      category = insert_category()
+      category = insert_category(%{name: "Alimentation", color: "#4CAF50"})
 
       conn = get(conn, ~p"/api/v1/categories/#{category.id}")
       data = json_response(conn, 200)
@@ -65,7 +62,7 @@ defmodule MoulaxWeb.CategoryControllerTest do
 
   describe "update category" do
     test "renders category when data is valid", %{conn: conn} do
-      category = insert_category()
+      category = insert_category(%{name: "Alimentation", color: "#4CAF50"})
 
       conn = put(conn, ~p"/api/v1/categories/#{category.id}", @update_attrs)
       data = json_response(conn, 200)
@@ -101,11 +98,5 @@ defmodule MoulaxWeb.CategoryControllerTest do
       conn = delete(conn, ~p"/api/v1/categories/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
-  end
-
-  defp insert_category do
-    %Category{}
-    |> Category.changeset(%{"name" => "Alimentation", "color" => "#4CAF50"})
-    |> Repo.insert!()
   end
 end

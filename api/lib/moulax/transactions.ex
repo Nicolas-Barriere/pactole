@@ -128,7 +128,13 @@ defmodule Moulax.Transactions do
         query
 
       term ->
-        pattern = "%#{String.replace(term, "%", "\\%")}%"
+        escaped =
+          term
+          |> String.replace("\\", "\\\\")
+          |> String.replace("%", "\\%")
+          |> String.replace("_", "\\_")
+
+        pattern = "%#{escaped}%"
         where(query, [t], ilike(t.label, ^pattern))
     end
   end
@@ -255,11 +261,13 @@ defmodule Moulax.Transactions do
   defp format_decimal(other), do: to_string(other)
 
   defp to_int(val, _default) when is_integer(val), do: val
+
   defp to_int(val, default) when is_binary(val) do
     case Integer.parse(val) do
       {n, _} -> n
       :error -> default
     end
   end
+
   defp to_int(_, default), do: default
 end

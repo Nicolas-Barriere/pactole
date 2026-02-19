@@ -33,6 +33,21 @@ defmodule MoulaxWeb.CategorizationRuleController do
   end
 
   @doc """
+  GET /api/v1/categorization-rules/:id — Show a single rule.
+  """
+  def show(conn, %{"id" => id}) do
+    case Rules.get_rule(id) do
+      {:ok, rule} ->
+        json(conn, rule)
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{errors: %{detail: "Not Found"}})
+    end
+  end
+
+  @doc """
   PUT /api/v1/categorization-rules/:id — Update rule.
   """
   def update(conn, %{"id" => id} = params) do

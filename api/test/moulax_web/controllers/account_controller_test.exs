@@ -1,9 +1,6 @@
 defmodule MoulaxWeb.AccountControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Accounts.Account
-  alias Moulax.Repo
-
   @create_attrs %{
     "name" => "Boursorama Checking",
     "bank" => "boursorama",
@@ -21,15 +18,7 @@ defmodule MoulaxWeb.AccountControllerTest do
     end
 
     test "archived accounts are excluded from list", %{conn: conn} do
-      {:ok, _} =
-        %Account{}
-        |> Account.changeset(%{
-          "name" => "Archived",
-          "bank" => "b",
-          "type" => "checking",
-          "archived" => true
-        })
-        |> Repo.insert()
+      insert_account(%{name: "Archived", bank: "b", type: "checking", archived: true})
 
       conn = get(conn, ~p"/api/v1/accounts")
       assert json_response(conn, 200) == []
@@ -118,11 +107,5 @@ defmodule MoulaxWeb.AccountControllerTest do
       conn = delete(conn, ~p"/api/v1/accounts/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
-  end
-
-  defp insert_account do
-    %Account{}
-    |> Account.changeset(%{"name" => "Test", "bank" => "test", "type" => "checking"})
-    |> Repo.insert!()
   end
 end

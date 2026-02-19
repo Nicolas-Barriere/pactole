@@ -1,11 +1,6 @@
 defmodule MoulaxWeb.TransactionControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
-  alias Moulax.Transactions.Transaction
-  alias Moulax.Accounts.Account
-  alias Moulax.Categories.Category
-  alias Moulax.Repo
-
   setup do
     account = insert_account()
     %{account: account}
@@ -13,7 +8,12 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "index (nested) GET /api/v1/accounts/:account_id/transactions" do
     test "returns paginated data and meta", %{conn: conn, account: account} do
-      _tx = insert_transaction(account.id, "2026-02-01", "Shop", "-10.00")
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Shop",
+        amount: Decimal.new("-10.00")
+      })
 
       conn = get(conn, ~p"/api/v1/accounts/#{account.id}/transactions")
       body = json_response(conn, 200)
@@ -38,8 +38,19 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "index (global) GET /api/v1/transactions" do
     test "returns all transactions with filters", %{conn: conn, account: account} do
-      insert_transaction(account.id, "2026-02-01", "A", "-1")
-      insert_transaction(account.id, "2026-02-02", "B", "-2")
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "A",
+        amount: Decimal.new("-1")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-02],
+        label: "B",
+        amount: Decimal.new("-2")
+      })
 
       conn = get(conn, ~p"/api/v1/transactions")
       body = json_response(conn, 200)
@@ -48,8 +59,19 @@ defmodule MoulaxWeb.TransactionControllerTest do
     end
 
     test "accepts query params for filtering", %{conn: conn, account: account} do
-      insert_transaction(account.id, "2026-02-01", "CARREFOUR", "-10")
-      insert_transaction(account.id, "2026-02-02", "SNCF", "-20")
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "CARREFOUR",
+        amount: Decimal.new("-10")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-02],
+        label: "SNCF",
+        amount: Decimal.new("-20")
+      })
 
       conn = get(conn, "/api/v1/transactions?search=carrefour")
       body = json_response(conn, 200)
@@ -60,7 +82,13 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "show GET /api/v1/transactions/:id" do
     test "returns transaction when found", %{conn: conn, account: account} do
-      tx = insert_transaction(account.id, "2026-02-15", "Test", "-42.50")
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-15],
+          label: "Test",
+          amount: Decimal.new("-42.50")
+        })
 
       conn = get(conn, ~p"/api/v1/transactions/#{tx.id}")
       data = json_response(conn, 200)
@@ -100,7 +128,14 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "update PUT /api/v1/transactions/:id" do
     test "updates transaction", %{conn: conn, account: account} do
-      tx = insert_transaction(account.id, "2026-02-01", "Old", "-10")
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Old",
+          amount: Decimal.new("-10")
+        })
+
       cat = insert_category()
 
       conn =
@@ -122,8 +157,22 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "bulk_categorize PATCH /api/v1/transactions/bulk-categorize" do
     test "updates category for given transaction ids", %{conn: conn, account: account} do
-      t1 = insert_transaction(account.id, "2026-02-01", "A", "-1")
-      t2 = insert_transaction(account.id, "2026-02-02", "B", "-2")
+      t1 =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "A",
+          amount: Decimal.new("-1")
+        })
+
+      t2 =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-02],
+          label: "B",
+          amount: Decimal.new("-2")
+        })
+
       cat = insert_category()
 
       conn =
@@ -139,7 +188,13 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
   describe "delete DELETE /api/v1/transactions/:id" do
     test "deletes transaction", %{conn: conn, account: account} do
-      tx = insert_transaction(account.id, "2026-02-01", "X", "-1")
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "X",
+          amount: Decimal.new("-1")
+        })
 
       conn = delete(conn, ~p"/api/v1/transactions/#{tx.id}")
       assert response(conn, 204)
@@ -152,30 +207,5 @@ defmodule MoulaxWeb.TransactionControllerTest do
       conn = delete(conn, ~p"/api/v1/transactions/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
-  end
-
-  defp insert_account do
-    %Account{}
-    |> Account.changeset(%{name: "Test", bank: "test", type: "checking"})
-    |> Repo.insert!()
-  end
-
-  defp insert_category do
-    %Category{name: "Test Cat", color: "#3b82f6"}
-    |> Repo.insert!()
-  end
-
-  defp insert_transaction(account_id, date_str, label, amount_str, category_id \\ nil) do
-    %Transaction{}
-    |> Transaction.changeset(%{
-      account_id: account_id,
-      date: Date.from_iso8601!(date_str),
-      label: label,
-      original_label: label,
-      amount: Decimal.new(amount_str),
-      source: "manual",
-      category_id: category_id
-    })
-    |> Repo.insert!()
   end
 end
