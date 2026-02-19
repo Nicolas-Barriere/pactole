@@ -451,6 +451,7 @@ defmodule MoulaxWeb.DashboardControllerTest do
 
       for day <- 1..6 do
         amount = Decimal.new("-#{day * 10}")
+
         insert_transaction(%{
           account_id: account.id,
           date: Date.from_iso8601!(date_string(year, month, day)),

@@ -8,8 +8,19 @@ defmodule Moulax.TransactionsTest do
     test "returns paginated data and meta" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Shop A", amount: Decimal.new("-10.50")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-02], label: "Shop B", amount: Decimal.new("-20.00")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Shop A",
+        amount: Decimal.new("-10.50")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-02],
+        label: "Shop B",
+        amount: Decimal.new("-20.00")
+      })
 
       result = Transactions.list_transactions(%{})
       assert length(result.data) == 2
@@ -34,7 +45,13 @@ defmodule Moulax.TransactionsTest do
       account = insert_account()
       cat = insert_category()
 
-      insert_transaction(%{account_id: account.id, label: "X", amount: Decimal.new("-1"), category_id: cat.id})
+      insert_transaction(%{
+        account_id: account.id,
+        label: "X",
+        amount: Decimal.new("-1"),
+        category_id: cat.id
+      })
+
       insert_transaction(%{account_id: account.id, label: "Y", amount: Decimal.new("-2")})
 
       result = Transactions.list_transactions(%{"category_id" => cat.id})
@@ -47,7 +64,13 @@ defmodule Moulax.TransactionsTest do
       cat = insert_category()
 
       insert_transaction(%{account_id: account.id, label: "X", amount: Decimal.new("-1")})
-      insert_transaction(%{account_id: account.id, label: "Y", amount: Decimal.new("-2"), category_id: cat.id})
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Y",
+        amount: Decimal.new("-2"),
+        category_id: cat.id
+      })
 
       result = Transactions.list_transactions(%{"category_id" => "uncategorized"})
       assert result.meta.total_count == 1
@@ -57,11 +80,29 @@ defmodule Moulax.TransactionsTest do
     test "filters by date_from and date_to with ISO strings" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-01-15], label: "Old", amount: Decimal.new("-1")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-10], label: "Mid", amount: Decimal.new("-2")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-03-20], label: "New", amount: Decimal.new("-3")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-01-15],
+        label: "Old",
+        amount: Decimal.new("-1")
+      })
 
-      result = Transactions.list_transactions(%{"date_from" => "2026-02-01", "date_to" => "2026-02-28"})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-10],
+        label: "Mid",
+        amount: Decimal.new("-2")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-03-20],
+        label: "New",
+        amount: Decimal.new("-3")
+      })
+
+      result =
+        Transactions.list_transactions(%{"date_from" => "2026-02-01", "date_to" => "2026-02-28"})
 
       assert result.meta.total_count == 1
       assert hd(result.data).date == "2026-02-10"
@@ -70,11 +111,29 @@ defmodule Moulax.TransactionsTest do
     test "accepts Date structs for date_from/date_to filters" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-01-15], label: "Old", amount: Decimal.new("-1")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-10], label: "Mid", amount: Decimal.new("-2")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-03-20], label: "New", amount: Decimal.new("-3")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-01-15],
+        label: "Old",
+        amount: Decimal.new("-1")
+      })
 
-      result = Transactions.list_transactions(%{date_from: ~D[2026-02-01], date_to: ~D[2026-02-28]})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-10],
+        label: "Mid",
+        amount: Decimal.new("-2")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-03-20],
+        label: "New",
+        amount: Decimal.new("-3")
+      })
+
+      result =
+        Transactions.list_transactions(%{date_from: ~D[2026-02-01], date_to: ~D[2026-02-28]})
 
       assert result.meta.total_count == 1
       assert hd(result.data).label == "Mid"
@@ -84,7 +143,8 @@ defmodule Moulax.TransactionsTest do
       account = insert_account()
       insert_transaction(%{account_id: account.id, label: "A", amount: Decimal.new("-1")})
 
-      result = Transactions.list_transactions(%{"date_from" => "not-a-date", "date_to" => "also-bad"})
+      result =
+        Transactions.list_transactions(%{"date_from" => "not-a-date", "date_to" => "also-bad"})
 
       assert result.meta.total_count == 1
     end
@@ -92,8 +152,19 @@ defmodule Moulax.TransactionsTest do
     test "search is case-insensitive substring on label" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "CARREFOUR City", amount: Decimal.new("-10")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-02], label: "SNCF Train", amount: Decimal.new("-20")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "CARREFOUR City",
+        amount: Decimal.new("-10")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-02],
+        label: "SNCF Train",
+        amount: Decimal.new("-20")
+      })
 
       result = Transactions.list_transactions(%{"search" => "carrefour"})
       assert result.meta.total_count == 1
@@ -107,8 +178,17 @@ defmodule Moulax.TransactionsTest do
     test "search with SQL wildcard % character is treated as literal" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, label: "100% organic", amount: Decimal.new("-5")})
-      insert_transaction(%{account_id: account.id, label: "Regular shop", amount: Decimal.new("-10")})
+      insert_transaction(%{
+        account_id: account.id,
+        label: "100% organic",
+        amount: Decimal.new("-5")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Regular shop",
+        amount: Decimal.new("-10")
+      })
 
       result = Transactions.list_transactions(%{"search" => "100%"})
       assert result.meta.total_count == 1
@@ -118,8 +198,17 @@ defmodule Moulax.TransactionsTest do
     test "search with SQL wildcard _ character is treated as literal" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, label: "SHOP_ONLINE", amount: Decimal.new("-5")})
-      insert_transaction(%{account_id: account.id, label: "SHOP ONLINE", amount: Decimal.new("-10")})
+      insert_transaction(%{
+        account_id: account.id,
+        label: "SHOP_ONLINE",
+        amount: Decimal.new("-5")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "SHOP ONLINE",
+        amount: Decimal.new("-10")
+      })
 
       result = Transactions.list_transactions(%{"search" => "SHOP_"})
       assert result.meta.total_count == 1
@@ -139,7 +228,11 @@ defmodule Moulax.TransactionsTest do
       account = insert_account()
 
       for i <- 1..5 do
-        insert_transaction(%{account_id: account.id, label: "Tx #{i}", amount: Decimal.new("-#{i}")})
+        insert_transaction(%{
+          account_id: account.id,
+          label: "Tx #{i}",
+          amount: Decimal.new("-#{i}")
+        })
       end
 
       result = Transactions.list_transactions(%{"page" => 2, "per_page" => 2})
@@ -164,8 +257,19 @@ defmodule Moulax.TransactionsTest do
     test "default sort is date desc" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "First", amount: Decimal.new("-1")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-03], label: "Last", amount: Decimal.new("-2")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "First",
+        amount: Decimal.new("-1")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-03],
+        label: "Last",
+        amount: Decimal.new("-2")
+      })
 
       result = Transactions.list_transactions(%{})
       [first, second] = result.data
@@ -176,8 +280,19 @@ defmodule Moulax.TransactionsTest do
     test "sort_by amount asc" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Big", amount: Decimal.new("-100")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Small", amount: Decimal.new("-5")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Big",
+        amount: Decimal.new("-100")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Small",
+        amount: Decimal.new("-5")
+      })
 
       result = Transactions.list_transactions(%{"sort_by" => "amount", "sort_order" => "asc"})
       assert length(result.data) == 2
@@ -187,8 +302,19 @@ defmodule Moulax.TransactionsTest do
     test "sort_by amount desc" do
       account = insert_account()
 
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Big", amount: Decimal.new("-100")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Small", amount: Decimal.new("-5")})
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Big",
+        amount: Decimal.new("-100")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Small",
+        amount: Decimal.new("-5")
+      })
 
       result = Transactions.list_transactions(%{"sort_by" => "amount", "sort_order" => "desc"})
       assert Enum.map(result.data, & &1.amount) == ["-5", "-100"]
@@ -214,8 +340,20 @@ defmodule Moulax.TransactionsTest do
 
     test "unknown sort_by with asc sort_order falls back to date asc" do
       account = insert_account()
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-03], label: "Third", amount: Decimal.new("-3")})
-      insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "First", amount: Decimal.new("-1")})
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-03],
+        label: "Third",
+        amount: Decimal.new("-3")
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "First",
+        amount: Decimal.new("-1")
+      })
 
       result = Transactions.list_transactions(%{"sort_by" => "unknown", "sort_order" => "asc"})
       assert Enum.map(result.data, & &1.date) == ["2026-02-01", "2026-02-03"]
@@ -225,7 +363,14 @@ defmodule Moulax.TransactionsTest do
   describe "get_transaction/1" do
     test "returns transaction when found" do
       account = insert_account()
-      tx = insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Test", amount: Decimal.new("-10")})
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Test",
+          amount: Decimal.new("-10")
+        })
 
       assert {:ok, got} = Transactions.get_transaction(tx.id)
       assert got.id == tx.id
@@ -312,7 +457,8 @@ defmodule Moulax.TransactionsTest do
       cat = insert_category()
       tx = insert_transaction(%{account_id: account.id, label: "Old", amount: Decimal.new("-10")})
 
-      assert {:ok, updated} = Transactions.update_transaction(tx, %{category_id: cat.id, label: "New label"})
+      assert {:ok, updated} =
+               Transactions.update_transaction(tx, %{category_id: cat.id, label: "New label"})
 
       assert updated.category_id == cat.id
       assert updated.label == "New label"
@@ -320,7 +466,14 @@ defmodule Moulax.TransactionsTest do
 
     test "returns changeset error for invalid updates" do
       account = insert_account()
-      tx = insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "Old", amount: Decimal.new("-10")})
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Old",
+          amount: Decimal.new("-10")
+        })
 
       assert {:error, changeset} = Transactions.update_transaction(tx, %{source: "invalid"})
       assert %{source: [_]} = errors_on(changeset)
@@ -342,7 +495,14 @@ defmodule Moulax.TransactionsTest do
 
     test "deletes by struct" do
       account = insert_account()
-      tx = insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "X", amount: Decimal.new("-1")})
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "X",
+          amount: Decimal.new("-1")
+        })
 
       assert {:ok, _} = Transactions.delete_transaction(tx)
       assert {:error, :not_found} = Transactions.get_transaction(tx.id)
@@ -354,8 +514,21 @@ defmodule Moulax.TransactionsTest do
       account = insert_account()
       cat = insert_category()
 
-      t1 = insert_transaction(%{account_id: account.id, date: ~D[2026-02-01], label: "A", amount: Decimal.new("-1")})
-      t2 = insert_transaction(%{account_id: account.id, date: ~D[2026-02-02], label: "B", amount: Decimal.new("-2")})
+      t1 =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "A",
+          amount: Decimal.new("-1")
+        })
+
+      t2 =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-02],
+          label: "B",
+          amount: Decimal.new("-2")
+        })
 
       assert {:ok, 2} = Transactions.bulk_categorize([t1.id, t2.id], cat.id)
 
@@ -369,7 +542,13 @@ defmodule Moulax.TransactionsTest do
       account = insert_account()
       cat = insert_category()
 
-      tx = insert_transaction(%{account_id: account.id, label: "A", amount: Decimal.new("-1"), category_id: cat.id})
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          label: "A",
+          amount: Decimal.new("-1"),
+          category_id: cat.id
+        })
 
       assert {:ok, 1} = Transactions.bulk_categorize([tx.id], nil)
       assert {:ok, updated} = Transactions.get_transaction(tx.id)
@@ -382,7 +561,10 @@ defmodule Moulax.TransactionsTest do
 
     test "returns 0 when none of the transaction IDs exist" do
       assert {:ok, 0} =
-               Transactions.bulk_categorize([Ecto.UUID.generate(), Ecto.UUID.generate()], Ecto.UUID.generate())
+               Transactions.bulk_categorize(
+                 [Ecto.UUID.generate(), Ecto.UUID.generate()],
+                 Ecto.UUID.generate()
+               )
     end
   end
 
