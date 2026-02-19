@@ -258,6 +258,23 @@ defmodule Moulax.TransactionsTest do
       assert tx.account_id == account.id
     end
 
+    test "defaults currency to EUR when blank" do
+      account = insert_account()
+
+      attrs = %{
+        account_id: account.id,
+        date: ~D[2026-02-15],
+        label: "Manual entry",
+        original_label: "Manual entry",
+        amount: Decimal.new("-25.50"),
+        currency: "",
+        source: "manual"
+      }
+
+      assert {:ok, tx} = Transactions.create_transaction(attrs)
+      assert tx.currency == "EUR"
+    end
+
     test "validates required fields" do
       assert {:error, changeset} = Transactions.create_transaction(%{})
 

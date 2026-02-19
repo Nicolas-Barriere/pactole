@@ -129,6 +129,134 @@ defmodule Moulax.Parsers.RevolutTest do
       assert {:ok, transactions} = Revolut.parse(content)
       assert length(transactions) == 4
     end
+
+    test "skips rows when state is empty" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,,100.00\n"
+
+      assert {:ok, []} = Revolut.parse(csv)
+    end
+
+    test "skips rows when duplicate state header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,State\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:ok, []} = Revolut.parse(csv)
+    end
+
+    test "returns missing date when duplicate completed-date header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,Completed Date\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = Revolut.parse(csv)
+    end
+
+    test "returns missing date when completed date is empty" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = Revolut.parse(csv)
+    end
+
+    test "returns missing amount when amount is empty" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing amount"}]} = Revolut.parse(csv)
+    end
+
+    test "returns missing amount when duplicate amount header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,Amount\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing amount"}]} = Revolut.parse(csv)
+    end
+
+    test "returns invalid amount when amount has trailing garbage" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50abc,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: message}]} = Revolut.parse(csv)
+      assert message =~ "invalid amount"
+    end
+
+    test "returns missing description when duplicate description header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,Description\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing description"}]} = Revolut.parse(csv)
+    end
+
+    test "returns missing currency when currency is empty" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing currency"}]} = Revolut.parse(csv)
+    end
+
+    test "returns missing currency when duplicate currency header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,Currency\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing currency"}]} = Revolut.parse(csv)
+    end
+
+    test "treats empty fee as zero" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,,EUR,COMPLETED,100.00\n"
+
+      assert {:ok, [txn]} = Revolut.parse(csv)
+      assert txn.label == "Coffee"
+      assert txn.amount == Decimal.new("-3.50")
+    end
+
+    test "treats missing fee as zero when duplicate fee header points to missing field" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance,Fee\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:ok, [txn]} = Revolut.parse(csv)
+      assert txn.label == "Coffee"
+      assert txn.amount == Decimal.new("-3.50")
+    end
+
+    test "returns invalid fee for non-numeric fee" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,oops,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: message}]} = Revolut.parse(csv)
+      assert message =~ "invalid fee"
+    end
+
+    test "returns invalid fee when fee has trailing garbage" do
+      csv =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,Coffee,-3.50,1.5oops,EUR,COMPLETED,100.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: message}]} = Revolut.parse(csv)
+      assert message =~ "invalid fee"
+    end
+
+    test "handles Latin-1 encoded content" do
+      latin1 =
+        "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n" <>
+          "CARD,Current,2026-02-10 10:00:00,2026-02-10 10:01:00,CAF\xE9,-3.50,0.00,EUR,COMPLETED,100.00\n"
+
+      assert {:ok, [txn]} = Revolut.parse(latin1)
+      assert txn.label =~ "CAF"
+    end
   end
 
   describe "parse/1 with French-locale export" do

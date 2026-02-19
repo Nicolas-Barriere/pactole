@@ -138,6 +138,48 @@ defmodule Moulax.Parsers.CaisseDepargneTest do
       assert txn.original_label =~ "CAF"
       assert txn.amount == Decimal.new("-5.50")
     end
+
+    test "returns missing date when duplicate Date header points to missing field" do
+      csv =
+        "Date;Numéro d'opération;Libellé;Débit;Crédit;Détail;Date\n" <>
+          "10/02/2026;123456;Coffee;-5.50;;\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = CaisseDepargne.parse(csv)
+    end
+
+    test "returns missing date when date is empty" do
+      csv =
+        "Date;Numéro d'opération;Libellé;Débit;Crédit;Détail\n" <>
+          ";123456;Coffee;-5.50;;\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = CaisseDepargne.parse(csv)
+    end
+
+    test "returns invalid date for impossible calendar dates" do
+      csv =
+        "Date;Numéro d'opération;Libellé;Débit;Crédit;Détail\n" <>
+          "31/02/2026;123456;Coffee;-5.50;;\n"
+
+      assert {:error, [%ParseError{row: 1, message: message}]} = CaisseDepargne.parse(csv)
+      assert message =~ "invalid date"
+    end
+
+    test "returns missing amount when debit and credit are empty" do
+      csv =
+        "Date;Numéro d'opération;Libellé;Débit;Crédit;Détail\n" <>
+          "10/02/2026;123456;Coffee;;;\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing amount"}]} =
+               CaisseDepargne.parse(csv)
+    end
+
+    test "returns missing label when duplicate Libellé header points to missing field" do
+      csv =
+        "Date;Numéro d'opération;Libellé;Débit;Crédit;Détail;Libellé\n" <>
+          "10/02/2026;123456;Coffee;-5.50;;\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing label"}]} = CaisseDepargne.parse(csv)
+    end
   end
 
   describe "clean_label/1" do

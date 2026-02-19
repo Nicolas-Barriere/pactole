@@ -166,6 +166,55 @@ defmodule Moulax.Parsers.BoursoramaTest do
       assert {:ok, transactions} = Boursorama.parse(bom_content)
       assert length(transactions) == 13
     end
+
+    test "returns missing date when duplicate dateOp header points to missing field" do
+      csv =
+        "dateOp;dateVal;label;amount;dateOp\n" <>
+          "2026-02-10;2026-02-10;Coffee;-10.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = Boursorama.parse(csv)
+    end
+
+    test "returns missing date when date is empty" do
+      csv =
+        "dateOp;dateVal;label;amount\n" <>
+          ";2026-02-10;Coffee;-10.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing date"}]} = Boursorama.parse(csv)
+    end
+
+    test "returns missing amount when duplicate amount header points to missing field" do
+      csv =
+        "dateOp;dateVal;label;amount;amount\n" <>
+          "2026-02-10;2026-02-10;Coffee;-10.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing amount"}]} = Boursorama.parse(csv)
+    end
+
+    test "returns missing amount when amount is empty" do
+      csv =
+        "dateOp;dateVal;label;amount\n" <>
+          "2026-02-10;2026-02-10;Coffee;\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing amount"}]} = Boursorama.parse(csv)
+    end
+
+    test "returns invalid amount when amount has trailing garbage" do
+      csv =
+        "dateOp;dateVal;label;amount\n" <>
+          "2026-02-10;2026-02-10;Coffee;-10.00abc\n"
+
+      assert {:error, [%ParseError{row: 1, message: message}]} = Boursorama.parse(csv)
+      assert message =~ "invalid amount"
+    end
+
+    test "returns missing label when duplicate label header points to missing field" do
+      csv =
+        "dateOp;dateVal;label;amount;label\n" <>
+          "2026-02-10;2026-02-10;Coffee;-10.00\n"
+
+      assert {:error, [%ParseError{row: 1, message: "missing label"}]} = Boursorama.parse(csv)
+    end
   end
 
   describe "clean_label/1" do
