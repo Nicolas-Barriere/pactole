@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConvertedAmount } from "@/components/converted-amount";
 import {
   AccountForm,
   BANK_LABELS,
@@ -14,13 +15,6 @@ import {
   type AccountFormData,
 } from "@/components/account-form";
 import type { Account, Transaction, Import, PaginatedResponse } from "@/types";
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -232,7 +226,10 @@ export default function AccountDetailPage() {
                 balance >= 0 ? "text-foreground" : "text-danger"
               }`}
             >
-              {formatAmount(account.balance, account.currency)}
+              <ConvertedAmount
+                amount={account.balance}
+                fromCurrency={account.currency}
+              />
             </p>
           </div>
 
@@ -279,7 +276,10 @@ export default function AccountDetailPage() {
                 className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-foreground transition-colors hover:bg-card-hover"
                 title="Modifier le solde initial"
               >
-                {formatAmount(account.initial_balance, account.currency)}
+                <ConvertedAmount
+                  amount={account.initial_balance}
+                  fromCurrency={account.currency}
+                />
                 <PencilIcon className="h-3 w-3 text-muted" />
               </button>
             )}
@@ -361,7 +361,7 @@ export default function AccountDetailPage() {
                         }`}
                       >
                         {amt >= 0 ? "+" : ""}
-                        {formatAmount(tx.amount, tx.currency)}
+                        <ConvertedAmount amount={tx.amount} fromCurrency={tx.currency} />
                       </td>
                     </tr>
                   );

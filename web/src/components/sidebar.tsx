@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useCurrency } from "@/contexts/currency-context";
+import type { CurrencyCode } from "@/types";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboardIcon },
@@ -15,6 +17,8 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { baseCurrency, setBaseCurrency, supportedCurrencies, isRatesStale } =
+    useCurrency();
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -39,6 +43,14 @@ export function Sidebar() {
         <span className="text-lg font-bold tracking-tight text-primary">
           Moulax
         </span>
+        <div className="ml-auto">
+          <CurrencySelector
+            value={baseCurrency}
+            options={supportedCurrencies}
+            stale={isRatesStale}
+            onChange={setBaseCurrency}
+          />
+        </div>
       </header>
 
       {/* Mobile overlay */}
@@ -60,6 +72,12 @@ export function Sidebar() {
           <span className="text-xl font-bold tracking-tight text-primary">
             Moulax
           </span>
+          <CurrencySelector
+            value={baseCurrency}
+            options={supportedCurrencies}
+            stale={isRatesStale}
+            onChange={setBaseCurrency}
+          />
           <button
             onClick={() => setMobileOpen(false)}
             className="rounded-lg p-1 text-muted hover:text-foreground md:hidden"
@@ -160,5 +178,42 @@ function UploadIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
     </svg>
+  );
+}
+
+function CurrencySelector({
+  value,
+  options,
+  stale,
+  onChange,
+}: {
+  value: CurrencyCode;
+  options: CurrencyCode[];
+  stale: boolean;
+  onChange: (currency: CurrencyCode) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {stale && (
+        <span
+          className="inline-flex h-2 w-2 rounded-full bg-warning"
+          title="Taux potentiellement obsoletes"
+          aria-label="Taux potentiellement obsoletes"
+        />
+      )}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as CurrencyCode)}
+        className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
+        aria-label="Devise de base"
+        title="Devise de base"
+      >
+        {options.map((currency) => (
+          <option key={currency} value={currency}>
+            {currency}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

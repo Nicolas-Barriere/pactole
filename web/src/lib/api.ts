@@ -85,6 +85,7 @@ import type {
   DashboardSpending,
   DashboardTrends,
   DashboardTopExpenses,
+  ExchangeRatesResponse,
 } from "@/types";
 
 export const dashboard = {
@@ -101,4 +102,11 @@ export const dashboard = {
 
 export const currencies = {
   list: () => api.get<CurrenciesResponse>("/currencies"),
+};
+
+export const exchangeRates = {
+  list: (base = "EUR") =>
+    api.get<ExchangeRatesResponse>(
+      `/exchange-rates?base=${encodeURIComponent(base)}`,
+    ),
 };

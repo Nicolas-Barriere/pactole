@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
+import { useConvertedAmount } from "@/hooks/use-converted-amount";
 import {
   AccountForm,
   BANK_LABELS,
@@ -12,13 +13,6 @@ import {
   type AccountFormData,
 } from "@/components/account-form";
 import type { Account } from "@/types";
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -117,6 +111,7 @@ export default function AccountsPage() {
 
 function AccountCard({ account }: { account: Account }) {
   const balance = parseFloat(account.balance);
+  const displayedBalance = useConvertedAmount(account.balance, account.currency);
 
   return (
     <Link
@@ -142,7 +137,7 @@ function AccountCard({ account }: { account: Account }) {
         className={`text-2xl font-bold tabular-nums ${balance >= 0 ? "text-foreground" : "text-danger"
           }`}
       >
-        {formatAmount(account.balance, account.currency)}
+        {displayedBalance}
       </p>
 
       <div className="mt-3 flex items-center justify-between text-xs text-muted">

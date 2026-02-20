@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
+import { ConvertedAmount } from "@/components/converted-amount";
 import {
   TransactionForm,
   type TransactionFormData,
@@ -21,13 +22,6 @@ import type {
 const PER_PAGE = 50;
 
 /* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -538,7 +532,7 @@ function TransactionsContent() {
                         }`}
                       >
                         {amt >= 0 ? "+" : ""}
-                        {formatAmount(tx.amount, tx.currency)}
+                        <ConvertedAmount amount={tx.amount} fromCurrency={tx.currency} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted">
                         {tx.account?.name ?? "—"}
