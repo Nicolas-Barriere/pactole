@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
+import { ConvertedAmount } from "@/components/converted-amount";
 import { BANK_LABELS } from "@/components/account-form";
 import type { Account, Import, ImportRowDetail, ImportRowStatus } from "@/types";
 
@@ -262,6 +263,7 @@ export default function ImportPage() {
         <ResultsStep
           result={importResult}
           accountId={selectedAccountId}
+          accountCurrency={selectedAccount?.currency ?? "EUR"}
           onImportAnother={handleReset}
           onNewAccount={handleFullReset}
         />
@@ -554,11 +556,13 @@ function UploadStep({
 function ResultsStep({
   result,
   accountId,
+  accountCurrency,
   onImportAnother,
   onNewAccount,
 }: {
   result: Import;
   accountId: string;
+  accountCurrency: string;
   onImportAnother: () => void;
   onNewAccount: () => void;
 }) {
@@ -634,7 +638,9 @@ function ResultsStep({
       )}
 
       {/* Transaction details table */}
-      {rows.length > 0 && <ImportResultsTable rows={rows} />}
+      {rows.length > 0 && (
+        <ImportResultsTable rows={rows} accountCurrency={accountCurrency} />
+      )}
 
       {/* Fallback: error details for failed imports (no row_details) */}
       {isFailed && rows.length === 0 && (result.error_details?.length ?? 0) > 0 && (
@@ -707,7 +713,13 @@ const FILTER_OPTIONS: { value: "all" | ImportRowStatus; label: string }[] = [
   { value: "error", label: "Erreurs" },
 ];
 
-function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
+function ImportResultsTable({
+  rows,
+  accountCurrency,
+}: {
+  rows: ImportRowDetail[];
+  accountCurrency: string;
+}) {
   const [filter, setFilter] = useState<"all" | ImportRowStatus>("all");
 
   const filteredRows = useMemo(
@@ -796,7 +808,8 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
                       isNegative ? "text-danger" : "text-success"
                     }`}
                   >
-                    {isNegative ? "" : "+"}{formatAmount(amount)}
+                    {isNegative ? "" : "+"}
+                    <ConvertedAmount amount={row.amount} fromCurrency={accountCurrency} />
                   </td>
                   <td className="px-3 py-2 text-xs text-muted">
                     {row.tags ?? "—"}
@@ -828,14 +841,6 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
 function formatShortDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-function formatAmount(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 /* ── Stat Card ───────────────────────────────────────── */

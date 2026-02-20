@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { dashboard } from "@/lib/api";
+import { ConvertedAmount } from "@/components/converted-amount";
+import { useCurrency } from "@/contexts/currency-context";
 import type { TooltipContentProps } from "recharts";
 import { Skeleton, SkeletonCard, SkeletonChart } from "@/components/skeleton";
 import type {
@@ -28,13 +30,6 @@ import {
 } from "recharts";
 
 /* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -166,14 +161,16 @@ export default function DashboardPage() {
           spending={spending}
           loading={monthLoading}
           month={month}
+          currency={summary?.currency ?? "EUR"}
         />
-        <TrendsChart trends={trends} />
+        <TrendsChart trends={trends} currency={summary?.currency ?? "EUR"} />
       </div>
 
       {/* Top Expenses */}
       <TopExpensesList
         topExpenses={topExpenses}
         loading={monthLoading}
+        currency={summary?.currency ?? "EUR"}
       />
     </div>
   );
@@ -188,6 +185,7 @@ function NetWorthHeader({
   summary: DashboardSummary;
   trends: DashboardTrends | null;
 }) {
+  const { baseCurrency } = useCurrency();
   const changeVsLastMonth = useMemo(() => {
     if (!trends || trends.months.length < 2) return null;
     const lastMonth = trends.months[1];
@@ -202,7 +200,7 @@ function NetWorthHeader({
       <p className="text-sm font-medium text-muted">Patrimoine net</p>
       <div className="mt-1 flex items-baseline gap-3">
         <p className="text-3xl font-bold tracking-tight">
-          {formatAmount(summary.net_worth, summary.currency)}
+          <ConvertedAmount amount={summary.net_worth} fromCurrency={summary.currency} />
         </p>
         {changeVsLastMonth !== null && (
           <span
@@ -211,12 +209,15 @@ function NetWorthHeader({
             }`}
           >
             {changeVsLastMonth >= 0 ? "+" : ""}
-            {formatAmount(String(changeVsLastMonth), summary.currency)}{" "}
+            <ConvertedAmount
+              amount={String(changeVsLastMonth)}
+              fromCurrency={summary.currency}
+            />{" "}
             <span className="text-muted">le mois dernier</span>
           </span>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted">{summary.currency}</p>
+      <p className="mt-1 text-xs text-muted">{baseCurrency}</p>
     </div>
   );
 }
@@ -246,7 +247,7 @@ function AccountCards({ summary }: { summary: DashboardSummary }) {
                 </div>
               </div>
               <p className="mt-3 text-lg font-bold tracking-tight">
-                {formatAmount(account.balance)}
+                <ConvertedAmount amount={account.balance} fromCurrency={summary.currency} />
               </p>
               <div className="mt-1 flex items-center justify-between">
                 <span className="text-xs text-muted">
@@ -309,10 +310,12 @@ function SpendingBreakdown({
   spending,
   loading,
   month,
+  currency,
 }: {
   spending: DashboardSpending | null;
   loading: boolean;
   month: string;
+  currency: string;
 }) {
   const router = useRouter();
 
@@ -344,7 +347,7 @@ function SpendingBreakdown({
       <p className="mb-4 text-xs text-muted">
         Total :{" "}
         <span className="font-medium text-danger">
-          {formatAmount(spending.total_expenses)}
+          <ConvertedAmount amount={spending.total_expenses} fromCurrency={currency} />
         </span>
       </p>
 
@@ -382,7 +385,7 @@ function SpendingBreakdown({
                   ))}
                 </Pie>
                 <Tooltip
-                  content={<SpendingTooltip />}
+                  content={<SpendingTooltip currency={currency} />}
                   wrapperStyle={{ outline: "none" }}
                 />
               </PieChart>
@@ -398,7 +401,7 @@ function SpendingBreakdown({
                 />
                 <span className="flex-1 truncate">{entry.name}</span>
                 <span className="font-medium tabular-nums">
-                  {formatAmount(String(-entry.value))}
+                  <ConvertedAmount amount={String(-entry.value)} fromCurrency={currency} />
                 </span>
                 <span className="w-12 text-right text-xs text-muted tabular-nums">
                   {entry.percentage}%
@@ -412,14 +415,18 @@ function SpendingBreakdown({
   );
 }
 
-function SpendingTooltip({ active, payload }: Partial<TooltipContentProps<number, string>>) {
+function SpendingTooltip({
+  active,
+  payload,
+  currency,
+}: Partial<TooltipContentProps<number, string>> & { currency: string }) {
   if (!active || !payload?.[0]) return null;
   const data = payload[0].payload as { name: string; value: number; percentage: number };
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-lg">
       <p className="font-medium">{data.name}</p>
       <p className="text-muted">
-        {formatAmount(String(-data.value))} ({data.percentage}%)
+        <ConvertedAmount amount={String(-data.value)} fromCurrency={currency} /> ({data.percentage}%)
       </p>
     </div>
   );
@@ -427,7 +434,13 @@ function SpendingTooltip({ active, payload }: Partial<TooltipContentProps<number
 
 /* ── Trends Chart (Bar Chart) ────────────────────────── */
 
-function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
+function TrendsChart({
+  trends,
+  currency,
+}: {
+  trends: DashboardTrends | null;
+  currency: string;
+}) {
   if (!trends) {
     return <SkeletonChart />;
   }
@@ -476,7 +489,7 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
                 }
               />
               <Tooltip
-                content={<TrendTooltip />}
+                content={<TrendTooltip currency={currency} />}
                 wrapperStyle={{ outline: "none" }}
                 cursor={{ fill: "rgba(255,255,255,0.03)" }}
               />
@@ -505,14 +518,23 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
   );
 }
 
-function TrendTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
+function TrendTooltip({
+  active,
+  payload,
+  label,
+  currency,
+}: Partial<TooltipContentProps<number, string>> & { currency: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-lg">
       <p className="mb-1 font-medium capitalize">{label}</p>
       {payload.map((entry: { dataKey?: string; color?: string; value?: number }) => (
         <p key={entry.dataKey} style={{ color: entry.color }}>
-          {entry.dataKey} : {formatAmount(String(entry.value))}
+          {entry.dataKey} :{" "}
+          <ConvertedAmount
+            amount={String(entry.value ?? 0)}
+            fromCurrency={currency}
+          />
         </p>
       ))}
     </div>
@@ -524,9 +546,11 @@ function TrendTooltip({ active, payload, label }: Partial<TooltipContentProps<nu
 function TopExpensesList({
   topExpenses,
   loading,
+  currency,
 }: {
   topExpenses: DashboardTopExpenses | null;
   loading: boolean;
+  currency: string;
 }) {
   if (loading || !topExpenses) {
     return (
@@ -574,7 +598,7 @@ function TopExpensesList({
               </span>
               <span className="text-xs text-muted">{expense.account}</span>
               <span className="shrink-0 text-sm font-semibold text-danger tabular-nums">
-                {formatAmount(expense.amount)}
+                <ConvertedAmount amount={expense.amount} fromCurrency={currency} />
               </span>
             </div>
           ))}

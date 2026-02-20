@@ -31,6 +31,12 @@ export interface CurrenciesResponse {
   crypto: CurrencyCode[];
 }
 
+export interface ExchangeRatesResponse {
+  base: CurrencyCode;
+  rates: Record<string, string>;
+  fetched_at: string | null;
+}
+
 export interface Account {
   id: string;
   name: string;
