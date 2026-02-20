@@ -93,6 +93,8 @@ interface TransactionsClientProps {
   };
 }
 
+const ALL_FILTER_VALUE = "__all__";
+
 /* ── Main Component ──────────────────────────────────── */
 
 export function TransactionsClient({
@@ -118,6 +120,14 @@ export function TransactionsClient({
 
   const transactions = initialData.data;
   const meta = initialData.meta;
+  const selectedAccountLabel = accountFilter
+    ? (accounts.find((a) => a.id === accountFilter)?.name ?? "Compte inconnu")
+    : "Tous les comptes";
+  const selectedTagLabel = tagFilter
+    ? tagFilter === "untagged"
+      ? "Non tagué"
+      : (tags.find((t) => t.id === tagFilter)?.name ?? "Tag inconnu")
+    : "Tous les tags";
 
   /* Local state */
   const [searchInput, setSearchInput] = useState(search);
@@ -127,6 +137,11 @@ export function TransactionsClient({
   const [addOpen, setAddOpen] = useState(false);
   const [bulkTagId, setBulkTagId] = useState("");
   const [bulkPending, startBulkTransition] = useTransition();
+  const selectedBulkTagLabel = bulkTagId
+    ? bulkTagId === "untagged"
+      ? "Aucun tag"
+      : (tags.find((t) => t.id === bulkTagId)?.name ?? "Tag inconnu")
+    : "Choisir un tag";
   const [sorting, setSorting] = useState<SortingState>([
     { id: sortBy, desc: sortOrder === "desc" },
   ]);
@@ -439,16 +454,19 @@ export function TransactionsClient({
         </div>
 
         <Select
-          value={accountFilter || "_all"}
+          value={accountFilter || ALL_FILTER_VALUE}
           onValueChange={(v) =>
-            updateParams({ account: v === "_all" ? null : v, page: null })
+            updateParams({
+              account: !v || v === ALL_FILTER_VALUE ? null : v,
+              page: null,
+            })
           }
         >
           <SelectTrigger className="w-44 shadow-none">
-            <SelectValue placeholder="Tous les comptes" />
+            <SelectValue>{selectedAccountLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_all">Tous les comptes</SelectItem>
+            <SelectItem value={ALL_FILTER_VALUE}>Tous les comptes</SelectItem>
             {accounts.map((a) => (
               <SelectItem key={a.id} value={a.id}>
                 {a.name}
@@ -458,16 +476,19 @@ export function TransactionsClient({
         </Select>
 
         <Select
-          value={tagFilter || "_all"}
+          value={tagFilter || ALL_FILTER_VALUE}
           onValueChange={(v) =>
-            updateParams({ tag: v === "_all" ? null : v, page: null })
+            updateParams({
+              tag: !v || v === ALL_FILTER_VALUE ? null : v,
+              page: null,
+            })
           }
         >
           <SelectTrigger className="w-40 shadow-none">
-            <SelectValue placeholder="Tous les tags" />
+            <SelectValue>{selectedTagLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_all">Tous les tags</SelectItem>
+            <SelectItem value={ALL_FILTER_VALUE}>Tous les tags</SelectItem>
             <SelectItem value="untagged">Non tagué</SelectItem>
             {tags.map((t) => (
               <SelectItem key={t.id} value={t.id}>
@@ -525,7 +546,7 @@ export function TransactionsClient({
               onValueChange={(value) => setBulkTagId(value ?? "")}
             >
               <SelectTrigger className="h-8 w-44 text-sm">
-                <SelectValue placeholder="Choisir un tag" />
+                <SelectValue>{selectedBulkTagLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="untagged">Aucun tag</SelectItem>

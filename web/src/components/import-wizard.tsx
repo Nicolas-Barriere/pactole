@@ -77,6 +77,13 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   const [importError, setImportError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectableAccounts = detectedBank
+    ? accounts.filter((a) => a.bank === detectedBank)
+    : accounts;
+  const selectedAccountLabel = selectedAccountId
+    ? (selectableAccounts.find((a) => a.id === selectedAccountId)?.name ??
+      "Compte inconnu")
+    : "Sélectionnez un compte…";
 
   /* ── File handling + bank detection ────────────────── */
 
@@ -459,13 +466,10 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
             onValueChange={(value) => setSelectedAccountId(value ?? "")}
           >
             <SelectTrigger id="account-select">
-              <SelectValue placeholder="Sélectionnez un compte…" />
+              <SelectValue>{selectedAccountLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(detectedBank
-                ? accounts.filter((a) => a.bank === detectedBank)
-                : accounts
-              ).map((a) => (
+              {selectableAccounts.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name} — {BANK_LABELS[a.bank] ?? a.bank} ({a.currency})
                 </SelectItem>

@@ -16,8 +16,8 @@ async function TransactionsContent({
 
   const page = Number(params.page) || 1;
   const search = params.search || "";
-  const accountFilter = params.account || "";
-  const tagFilter = params.tag || "";
+  const accountFilter = params.account === "_all" ? "" : (params.account || "");
+  const tagFilter = params.tag === "_all" ? "" : (params.tag || "");
   const dateFrom = params.from || "";
   const dateTo = params.to || "";
   const sortBy = params.sort || "date";

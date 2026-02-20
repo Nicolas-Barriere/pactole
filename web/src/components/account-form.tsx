@@ -107,6 +107,10 @@ export function AccountForm({
   const [errors, setErrors] = useState<
     Partial<Record<keyof AccountFormData, string>>
   >({});
+  const selectedBankLabel = form.bank
+    ? (BANK_LABELS[form.bank] ?? form.bank)
+    : "Sélectionner une banque";
+  const selectedTypeLabel = TYPE_LABELS[form.type] ?? form.type;
 
   function validate(): boolean {
     const newErrors: Partial<Record<keyof AccountFormData, string>> = {};
@@ -154,7 +158,7 @@ export function AccountForm({
               onValueChange={(v) => setForm({ ...form, bank: v ?? "" })}
             >
               <SelectTrigger className={errors.bank ? "border-destructive" : ""}>
-                <SelectValue placeholder="Sélectionner une banque" />
+                <SelectValue>{selectedBankLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {BANKS.map((b) => (
@@ -178,7 +182,7 @@ export function AccountForm({
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{selectedTypeLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ACCOUNT_TYPES.map((t) => (

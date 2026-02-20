@@ -59,6 +59,9 @@ export function TransactionForm({
     account_id: defaultAccountId,
   });
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const selectedAccountLabel = form.account_id
+    ? (accounts.find((a) => a.id === form.account_id)?.name ?? "Compte inconnu")
+    : "Sélectionner un compte";
 
   function validate(): boolean {
     const errs: Partial<Record<string, string>> = {};
@@ -148,7 +151,7 @@ export function TransactionForm({
               <SelectTrigger
                 className={errors.account_id ? "border-destructive" : ""}
               >
-                <SelectValue placeholder="Sélectionner un compte" />
+                <SelectValue>{selectedAccountLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (

@@ -58,6 +58,9 @@ export function RuleForm({
   const [errors, setErrors] = useState<
     Partial<Record<keyof RuleFormData, string>>
   >({});
+  const selectedTagLabel = form.tag_id
+    ? (tags.find((t) => t.id === form.tag_id)?.name ?? "Tag inconnu")
+    : "Sélectionner un tag";
 
   function validate(): boolean {
     const newErrors: Partial<Record<keyof RuleFormData, string>> = {};
@@ -109,7 +112,7 @@ export function RuleForm({
               onValueChange={(v) => setForm({ ...form, tag_id: v ?? "" })}
             >
               <SelectTrigger className={errors.tag_id ? "border-destructive" : ""}>
-                <SelectValue placeholder="Sélectionner un tag" />
+                <SelectValue>{selectedTagLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {tags.map((t) => (
