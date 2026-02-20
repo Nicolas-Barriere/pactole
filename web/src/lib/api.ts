@@ -80,6 +80,7 @@ export const api = {
 /* ── Dashboard helpers ──────────────────────────────── */
 
 import type {
+  CurrenciesResponse,
   DashboardSummary,
   DashboardSpending,
   DashboardTrends,
@@ -96,4 +97,8 @@ export const dashboard = {
     api.get<DashboardTopExpenses>(
       `/dashboard/top-expenses?month=${month}&limit=${limit}`,
     ),
+};
+
+export const currencies = {
+  list: () => api.get<CurrenciesResponse>("/currencies"),
 };

@@ -7,6 +7,7 @@ defmodule Moulax.Transactions.Transaction do
   import Ecto.Changeset
 
   alias Moulax.Accounts.Account
+  alias Moulax.Currencies
   alias Moulax.Tags.Tag
 
   @type t :: %__MODULE__{
@@ -54,6 +55,7 @@ defmodule Moulax.Transactions.Transaction do
       name: :transactions_account_date_amount_original_label_index
     )
     |> put_currency_default()
+    |> validate_inclusion(:currency, Currencies.codes())
   end
 
   defp put_currency_default(changeset) do

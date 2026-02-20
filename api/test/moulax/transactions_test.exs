@@ -433,6 +433,23 @@ defmodule Moulax.TransactionsTest do
              } = errors_on(changeset)
     end
 
+    test "validates currency inclusion" do
+      account = insert_account()
+
+      assert {:error, changeset} =
+               Transactions.create_transaction(%{
+                 account_id: account.id,
+                 date: ~D[2026-02-15],
+                 label: "Manual entry",
+                 original_label: "Manual entry",
+                 amount: Decimal.new("-25.50"),
+                 source: "manual",
+                 currency: "XYZ"
+               })
+
+      assert %{currency: [_]} = errors_on(changeset)
+    end
+
     test "returns error when (account_id, date, amount, original_label) is not unique" do
       account = insert_account()
 

@@ -152,6 +152,18 @@ defmodule Moulax.AccountsTest do
 
       assert %{type: [_]} = errors_on(changeset)
     end
+
+    test "validates currency inclusion" do
+      assert {:error, changeset} =
+               Accounts.create_account(%{
+                 name: "X",
+                 bank: "Y",
+                 type: "checking",
+                 currency: "XYZ"
+               })
+
+      assert %{currency: [_]} = errors_on(changeset)
+    end
   end
 
   describe "update_account/2" do
