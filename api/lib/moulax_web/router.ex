@@ -8,7 +8,7 @@ defmodule MoulaxWeb.Router do
   scope "/api/v1", MoulaxWeb do
     pipe_through :api
 
-    resources "/categories", CategoryController, except: [:new, :edit]
+    resources "/tags", TagController, except: [:new, :edit]
 
     resources "/accounts", AccountController, except: [:new, :edit] do
       resources "/transactions", TransactionController, only: [:index, :create]
@@ -16,13 +16,13 @@ defmodule MoulaxWeb.Router do
     end
 
     get "/transactions", TransactionController, :index
-    patch "/transactions/bulk-categorize", TransactionController, :bulk_categorize
+    patch "/transactions/bulk-tag", TransactionController, :bulk_tag
     resources "/transactions", TransactionController, only: [:show, :update, :delete]
 
     resources "/imports", ImportController, only: [:show]
 
-    resources "/categorization-rules", CategorizationRuleController, except: [:new, :edit]
-    post "/categorization-rules/apply", CategorizationRuleController, :apply
+    resources "/tagging-rules", TaggingRuleController, except: [:new, :edit]
+    post "/tagging-rules/apply", TaggingRuleController, :apply_rules
 
     get "/dashboard/summary", DashboardController, :summary
     get "/dashboard/spending", DashboardController, :spending

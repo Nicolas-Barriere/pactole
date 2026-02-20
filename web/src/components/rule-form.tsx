@@ -1,38 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import type { CategorizationRule, Category } from "@/types";
+import type { TaggingRule, Tag } from "@/types";
 
 export interface RuleFormData {
   keyword: string;
-  category_id: string;
+  tag_id: string;
   priority: number;
 }
 
 interface RuleFormProps {
   open: boolean;
-  rule?: CategorizationRule | null;
-  categories: Category[];
+  rule?: TaggingRule | null;
+  tags: Tag[];
   loading?: boolean;
   onSubmit: (data: RuleFormData) => void;
   onClose: () => void;
 }
 
-function initialFormData(rule?: CategorizationRule | null): RuleFormData {
+function initialFormData(rule?: TaggingRule | null): RuleFormData {
   if (rule) {
     return {
       keyword: rule.keyword,
-      category_id: rule.category_id,
+      tag_id: rule.tag_id,
       priority: rule.priority,
     };
   }
-  return { keyword: "", category_id: "", priority: 0 };
+  return { keyword: "", tag_id: "", priority: 0 };
 }
 
 export function RuleForm({
   open,
   rule,
-  categories,
+  tags,
   loading = false,
   onSubmit,
   onClose,
@@ -45,7 +45,7 @@ export function RuleForm({
   function validate(): boolean {
     const newErrors: Partial<Record<keyof RuleFormData, string>> = {};
     if (!form.keyword.trim()) newErrors.keyword = "Le mot-clé est requis";
-    if (!form.category_id) newErrors.category_id = "La catégorie est requise";
+    if (!form.tag_id) newErrors.tag_id = "Le tag est requis";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -92,23 +92,23 @@ export function RuleForm({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Catégorie</label>
+            <label className="mb-1 block text-sm font-medium">Tag</label>
             <select
-              value={form.category_id}
+              value={form.tag_id}
               onChange={(e) =>
-                setForm({ ...form, category_id: e.target.value })
+                setForm({ ...form, tag_id: e.target.value })
               }
-              className={`${inputBase} ${errors.category_id ? "border-danger" : "border-border"}`}
+              className={`${inputBase} ${errors.tag_id ? "border-danger" : "border-border"}`}
             >
-              <option value="">Sélectionner une catégorie</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="">Sélectionner un tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
                 </option>
               ))}
             </select>
-            {errors.category_id && (
-              <p className="mt-1 text-xs text-danger">{errors.category_id}</p>
+            {errors.tag_id && (
+              <p className="mt-1 text-xs text-danger">{errors.tag_id}</p>
             )}
           </div>
 

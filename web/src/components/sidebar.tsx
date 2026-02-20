@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboardIcon },
   { href: "/accounts", label: "Comptes", icon: WalletIcon },
   { href: "/transactions", label: "Transactions", icon: ListIcon },
-  { href: "/categories", label: "Catégories", icon: TagIcon },
+  { href: "/tags", label: "Tags", icon: TagIcon },
   { href: "/import", label: "Importer", icon: UploadIcon },
 ];
 

@@ -753,7 +753,7 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
               <th className="w-24 px-3 py-2.5 font-semibold">Date</th>
               <th className="px-3 py-2.5 font-semibold">Libellé</th>
               <th className="w-28 px-3 py-2.5 text-right font-semibold">Montant</th>
-              <th className="w-32 px-3 py-2.5 font-semibold">Catégorie</th>
+              <th className="w-32 px-3 py-2.5 font-semibold">Tags</th>
               <th className="w-24 px-3 py-2.5 text-center font-semibold">Statut</th>
             </tr>
           </thead>
@@ -790,7 +790,7 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
                     {isNegative ? "" : "+"}{formatAmount(amount)}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted">
-                    {row.category ?? "—"}
+                    {row.tags ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span

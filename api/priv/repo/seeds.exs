@@ -13,8 +13,7 @@
 alias Moulax.Repo
 import Ecto.Query
 
-# Default categories for V1 (see V1_SPEC.md and gh issue #4)
-default_categories = [
+default_tags = [
   %{name: "Alimentation", color: "#4CAF50"},
   %{name: "Transport", color: "#2196F3"},
   %{name: "Logement", color: "#FF9800"},
@@ -29,7 +28,7 @@ default_categories = [
 now = DateTime.utc_now() |> DateTime.truncate(:second)
 
 rows =
-  Enum.map(default_categories, fn attrs ->
+  Enum.map(default_tags, fn attrs ->
     %{
       id: Ecto.UUID.bingenerate(),
       name: attrs.name,
@@ -39,10 +38,9 @@ rows =
     }
   end)
 
-# Only insert if no categories exist (idempotent seed)
-if Repo.one(from c in "categories", select: count()) == 0 do
-  Repo.insert_all("categories", rows)
-  IO.puts("Seeded #{length(rows)} default categories.")
+if Repo.one(from t in "tags", select: count()) == 0 do
+  Repo.insert_all("tags", rows)
+  IO.puts("Seeded #{length(rows)} default tags.")
 else
-  IO.puts("Categories already present, skipping seed.")
+  IO.puts("Tags already present, skipping seed.")
 end

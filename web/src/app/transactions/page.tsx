@@ -11,8 +11,8 @@ import {
 import type {
   Transaction,
   Account,
-  Category,
-  CategoryRef,
+  Tag,
+  TagRef,
   PaginatedResponse,
 } from "@/types";
 
@@ -49,7 +49,7 @@ function TransactionsContent() {
   const page = Number(searchParams.get("page")) || 1;
   const search = searchParams.get("search") || "";
   const accountFilter = searchParams.get("account") || "";
-  const categoryFilter = searchParams.get("category") || "";
+  const tagFilter = searchParams.get("tag") || "";
   const dateFrom = searchParams.get("from") || "";
   const dateTo = searchParams.get("to") || "";
   const sortBy = searchParams.get("sort") || "date";
@@ -64,7 +64,7 @@ function TransactionsContent() {
     total_pages: 0,
   });
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* Search input (debounced) */
@@ -73,7 +73,7 @@ function TransactionsContent() {
   /* Selection */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  /* Inline category editing */
+  /* Inline tag editing */
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [savedTxId, setSavedTxId] = useState<string | null>(null);
 
@@ -81,8 +81,8 @@ function TransactionsContent() {
   const [addOpen, setAddOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
-  /* Bulk categorize */
-  const [bulkCategoryId, setBulkCategoryId] = useState("");
+  /* Bulk tag */
+  const [bulkTagId, setBulkTagId] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
 
   /* ── URL param updater ─────────────────────────────── */
@@ -129,7 +129,7 @@ function TransactionsContent() {
       p.set("per_page", String(PER_PAGE));
       if (search) p.set("search", search);
       if (accountFilter) p.set("account_id", accountFilter);
-      if (categoryFilter) p.set("category_id", categoryFilter);
+      if (tagFilter) p.set("tag_id", tagFilter);
       if (dateFrom) p.set("date_from", dateFrom);
       if (dateTo) p.set("date_to", dateTo);
       p.set("sort_by", sortBy);
@@ -150,7 +150,7 @@ function TransactionsContent() {
     page,
     search,
     accountFilter,
-    categoryFilter,
+    tagFilter,
     dateFrom,
     dateTo,
     sortBy,
@@ -163,8 +163,8 @@ function TransactionsContent() {
       .then(setAccounts)
       .catch(() => {});
     api
-      .get<Category[]>("/categories")
-      .then(setCategories)
+      .get<Tag[]>("/tags")
+      .then(setTags)
       .catch(() => {});
   }, []);
 
@@ -200,64 +200,60 @@ function TransactionsContent() {
     }
   }
 
-  async function handleCategoryUpdate(
-    txId: string,
-    categoryId: string | null,
-  ) {
+  async function handleTagToggle(txId: string, tagId: string) {
     const tx = transactions.find((t) => t.id === txId);
     if (!tx) return;
 
-    const oldCategoryId = tx.category_id;
-    const oldCategory = tx.category;
+    const oldTags = tx.tags;
+    const hasTag = oldTags.some((t) => t.id === tagId);
+    const newTagIds = hasTag
+      ? oldTags.filter((t) => t.id !== tagId).map((t) => t.id)
+      : [...oldTags.map((t) => t.id), tagId];
 
-    const newCategory: CategoryRef | null = categoryId
-      ? (categories.find((c) => c.id === categoryId) ?? null)
-      : null;
+    const newTagRefs: TagRef[] = newTagIds
+      .map((id) => tags.find((t) => t.id === id))
+      .filter((t): t is Tag => !!t)
+      .map((t) => ({ id: t.id, name: t.name, color: t.color }));
 
     setTransactions((prev) =>
       prev.map((t) =>
-        t.id === txId
-          ? { ...t, category_id: categoryId, category: newCategory }
-          : t,
+        t.id === txId ? { ...t, tags: newTagRefs } : t,
       ),
     );
     setEditingTxId(null);
 
     try {
-      await api.put(`/transactions/${txId}`, { category_id: categoryId });
+      await api.put(`/transactions/${txId}`, { tag_ids: newTagIds });
       setSavedTxId(txId);
       setTimeout(() => setSavedTxId(null), 1500);
     } catch {
       setTransactions((prev) =>
         prev.map((t) =>
-          t.id === txId
-            ? { ...t, category_id: oldCategoryId, category: oldCategory }
-            : t,
+          t.id === txId ? { ...t, tags: oldTags } : t,
         ),
       );
       toast.error("Erreur lors de la mise à jour");
     }
   }
 
-  async function handleBulkCategorize() {
-    if (selectedIds.size === 0 || !bulkCategoryId) return;
+  async function handleBulkTag() {
+    if (selectedIds.size === 0 || !bulkTagId) return;
 
     try {
       setBulkLoading(true);
-      const categoryId =
-        bulkCategoryId === "uncategorized" ? null : bulkCategoryId;
-      await api.patch("/transactions/bulk-categorize", {
+      const tagIds = bulkTagId === "untagged" ? [] : [bulkTagId];
+      await api.patch("/transactions/bulk-tag", {
         transaction_ids: Array.from(selectedIds),
-        category_id: categoryId,
+        tag_ids: tagIds,
       });
       toast.success(
-        `${selectedIds.size} transaction${selectedIds.size > 1 ? "s" : ""} catégorisée${selectedIds.size > 1 ? "s" : ""}`,
+        `${selectedIds.size} transaction${selectedIds.size > 1 ? "s" : ""} taguée${selectedIds.size > 1 ? "s" : ""}`,
       );
       setSelectedIds(new Set());
-      setBulkCategoryId("");
+      setBulkTagId("");
       fetchTransactions();
     } catch {
-      toast.error("Erreur lors de la catégorisation groupée");
+      toast.error("Erreur lors du tagging groupé");
     } finally {
       setBulkLoading(false);
     }
@@ -270,7 +266,7 @@ function TransactionsContent() {
         date: data.date,
         label: data.label,
         amount: data.amount,
-        category_id: data.category_id || null,
+        tag_ids: data.tag_ids,
       });
       toast.success("Transaction ajoutée");
       setAddOpen(false);
@@ -298,7 +294,7 @@ function TransactionsContent() {
     transactions.length > 0 && selectedIds.size === transactions.length;
   const hasFilters = !!(
     accountFilter ||
-    categoryFilter ||
+    tagFilter ||
     dateFrom ||
     dateTo ||
     search
@@ -354,17 +350,17 @@ function TransactionsContent() {
         </select>
 
         <select
-          value={categoryFilter}
+          value={tagFilter}
           onChange={(e) =>
-            updateParams({ category: e.target.value || null, page: null })
+            updateParams({ tag: e.target.value || null, page: null })
           }
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
         >
-          <option value="">Toutes les catégories</option>
-          <option value="uncategorized">Non catégorisé</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+          <option value="">Tous les tags</option>
+          <option value="untagged">Non tagué</option>
+          {tags.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>
@@ -395,7 +391,7 @@ function TransactionsContent() {
             onClick={() =>
               updateParams({
                 account: null,
-                category: null,
+                tag: null,
                 from: null,
                 to: null,
                 search: null,
@@ -419,21 +415,21 @@ function TransactionsContent() {
           </span>
           <div className="flex items-center gap-2 sm:ml-auto">
             <select
-              value={bulkCategoryId}
-              onChange={(e) => setBulkCategoryId(e.target.value)}
+              value={bulkTagId}
+              onChange={(e) => setBulkTagId(e.target.value)}
               className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none"
             >
-              <option value="">Choisir une catégorie</option>
-              <option value="uncategorized">Aucune catégorie</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="">Choisir un tag</option>
+              <option value="untagged">Aucun tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
                 </option>
               ))}
             </select>
             <button
-              onClick={handleBulkCategorize}
-              disabled={!bulkCategoryId || bulkLoading}
+              onClick={handleBulkTag}
+              disabled={!bulkTagId || bulkLoading}
               className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
             >
               {bulkLoading ? "..." : "Appliquer"}
@@ -485,7 +481,7 @@ function TransactionsContent() {
                     order={sortOrder}
                     onSort={handleSort}
                   />
-                  <th className="px-4 py-3 font-medium">Catégorie</th>
+                  <th className="px-4 py-3 font-medium">Tags</th>
                   <SortHeader
                     field="amount"
                     label="Montant"
@@ -520,9 +516,9 @@ function TransactionsContent() {
                         <HighlightedText text={tx.label} highlight={search} />
                       </td>
                       <td className="px-4 py-3">
-                        <CategoryCell
+                        <TagsCell
                           transaction={tx}
-                          categories={categories}
+                          allTags={tags}
                           editing={editingTxId === tx.id}
                           saved={savedTxId === tx.id}
                           onEdit={() =>
@@ -530,8 +526,8 @@ function TransactionsContent() {
                               editingTxId === tx.id ? null : tx.id,
                             )
                           }
-                          onSelect={(catId) =>
-                            handleCategoryUpdate(tx.id, catId)
+                          onToggleTag={(tagId) =>
+                            handleTagToggle(tx.id, tagId)
                           }
                           onClose={() => setEditingTxId(null)}
                         />
@@ -580,7 +576,7 @@ function TransactionsContent() {
         key={addOpen ? "add" : "closed"}
         open={addOpen}
         accounts={accounts}
-        categories={categories}
+        tags={tags}
         defaultAccountId={accountFilter}
         loading={addLoading}
         onSubmit={handleAddTransaction}
@@ -631,23 +627,23 @@ function SortHeader({
   );
 }
 
-/* ── Inline category cell ────────────────────────────── */
+/* ── Inline tags cell ────────────────────────────────── */
 
-function CategoryCell({
+function TagsCell({
   transaction,
-  categories,
+  allTags,
   editing,
   saved,
   onEdit,
-  onSelect,
+  onToggleTag,
   onClose,
 }: {
   transaction: Transaction;
-  categories: Category[];
+  allTags: Tag[];
   editing: boolean;
   saved: boolean;
   onEdit: () => void;
-  onSelect: (categoryId: string | null) => void;
+  onToggleTag: (tagId: string) => void;
   onClose: () => void;
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -666,22 +662,33 @@ function CategoryCell({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [editing, onClose]);
 
-  const cat = transaction.category;
+  const txTags = transaction.tags;
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={onEdit}
-        className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm transition-colors hover:bg-background"
+        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm transition-colors hover:bg-background"
       >
-        {cat ? (
-          <>
-            <span
-              className="inline-block h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: cat.color }}
-            />
-            <span>{cat.name}</span>
-          </>
+        {txTags.length > 0 ? (
+          <span className="flex flex-wrap gap-1">
+            {txTags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                style={{
+                  backgroundColor: tag.color + "20",
+                  color: tag.color,
+                }}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: tag.color }}
+                />
+                {tag.name}
+              </span>
+            ))}
+          </span>
         ) : (
           <span className="text-muted/50">—</span>
         )}
@@ -690,31 +697,30 @@ function CategoryCell({
 
       {editing && (
         <div className="absolute left-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-xl">
-          <button
-            onClick={() => onSelect(null)}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-card-hover ${
-              !transaction.category_id ? "font-medium text-foreground" : "text-muted"
-            }`}
-          >
-            Aucune
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => onSelect(c.id)}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-card-hover ${
-                transaction.category_id === c.id
-                  ? "font-medium text-foreground"
-                  : ""
-              }`}
-            >
-              <span
-                className="inline-block h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: c.color }}
-              />
-              {c.name}
-            </button>
-          ))}
+          {allTags.map((tag) => {
+            const isActive = txTags.some((t) => t.id === tag.id);
+            return (
+              <button
+                key={tag.id}
+                onClick={() => onToggleTag(tag.id)}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-card-hover ${
+                  isActive ? "font-medium text-foreground" : ""
+                }`}
+              >
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: tag.color }}
+                />
+                <span className="flex-1">{tag.name}</span>
+                {isActive && (
+                  <CheckAnimIcon className="h-3.5 w-3.5 text-primary" />
+                )}
+              </button>
+            );
+          })}
+          {allTags.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted">Aucun tag disponible</p>
+          )}
         </div>
       )}
     </div>

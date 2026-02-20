@@ -1,47 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import type { Category } from "@/types";
+import type { Tag } from "@/types";
 
-export interface CategoryFormData {
+export interface TagFormData {
   name: string;
   color: string;
 }
 
-interface CategoryFormProps {
+interface TagFormProps {
   open: boolean;
-  category?: Category | null;
+  tag?: Tag | null;
   loading?: boolean;
-  onSubmit: (data: CategoryFormData) => void;
+  onSubmit: (data: TagFormData) => void;
   onClose: () => void;
 }
 
-function initialFormData(category?: Category | null): CategoryFormData {
-  if (category) {
+function initialFormData(tag?: Tag | null): TagFormData {
+  if (tag) {
     return {
-      name: category.name,
-      color: category.color,
+      name: tag.name,
+      color: tag.color,
     };
   }
-  return { name: "", color: "#3B82F6" }; // Default to a blue
+  return { name: "", color: "#3B82F6" };
 }
 
-export function CategoryForm({
+export function TagForm({
   open,
-  category,
+  tag,
   loading = false,
   onSubmit,
   onClose,
-}: CategoryFormProps) {
-  const [form, setForm] = useState<CategoryFormData>(() =>
-    initialFormData(category),
+}: TagFormProps) {
+  const [form, setForm] = useState<TagFormData>(() =>
+    initialFormData(tag),
   );
   const [errors, setErrors] = useState<
-    Partial<Record<keyof CategoryFormData, string>>
+    Partial<Record<keyof TagFormData, string>>
   >({});
 
   function validate(): boolean {
-    const newErrors: Partial<Record<keyof CategoryFormData, string>> = {};
+    const newErrors: Partial<Record<keyof TagFormData, string>> = {};
     if (!form.name.trim()) newErrors.name = "Le nom est requis";
     if (!form.color.trim()) newErrors.color = "La couleur est requise";
     setErrors(newErrors);
@@ -55,7 +55,7 @@ export function CategoryForm({
 
   if (!open) return null;
 
-  const isEdit = !!category;
+  const isEdit = !!tag;
   const inputBase =
     "w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary";
 
@@ -67,7 +67,7 @@ export function CategoryForm({
       />
       <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
         <h2 className="text-lg font-semibold">
-          {isEdit ? "Modifier la catégorie" : "Nouvelle catégorie"}
+          {isEdit ? "Modifier le tag" : "Nouveau tag"}
         </h2>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

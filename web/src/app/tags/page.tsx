@@ -3,27 +3,26 @@
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast";
-import { CategoryForm, type CategoryFormData } from "@/components/category-form";
+import { TagForm, type TagFormData } from "@/components/tag-form";
 import { RuleForm, type RuleFormData } from "@/components/rule-form";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import type { Category, CategorizationRule } from "@/types";
+import type { Tag, TaggingRule } from "@/types";
 
-export default function CategoriesPage() {
+export default function TagsPage() {
   const toast = useToast();
   
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [rules, setRules] = useState<CategorizationRule[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [rules, setRules] = useState<TaggingRule[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modals state
-  const [catFormOpen, setCatFormOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [catDeleteId, setCatDeleteId] = useState<string | null>(null);
+  const [tagFormOpen, setTagFormOpen] = useState(false);
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [tagDeleteId, setTagDeleteId] = useState<string | null>(null);
   
   const [ruleFormOpen, setRuleFormOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<CategorizationRule | null>(null);
+  const [editingRule, setEditingRule] = useState<TaggingRule | null>(null);
   const [ruleDeleteId, setRuleDeleteId] = useState<string | null>(null);
 
   const [formLoading, setFormLoading] = useState(false);
@@ -33,11 +32,11 @@ export default function CategoriesPage() {
     try {
       setLoading(true);
       setError(null);
-      const [cats, rls] = await Promise.all([
-        api.get<Category[]>("/categories"),
-        api.get<CategorizationRule[]>("/categorization-rules"),
+      const [tgs, rls] = await Promise.all([
+        api.get<Tag[]>("/tags"),
+        api.get<TaggingRule[]>("/tagging-rules"),
       ]);
-      setCategories(cats);
+      setTags(tgs);
       setRules(rls);
     } catch (err) {
       setError(
@@ -54,44 +53,42 @@ export default function CategoriesPage() {
     fetchData();
   }, [fetchData]);
 
-  // --- Category Actions ---
-  
-  function openAddCategory() {
-    setEditingCategory(null);
-    setCatFormOpen(true);
+  function openAddTag() {
+    setEditingTag(null);
+    setTagFormOpen(true);
   }
 
-  function openEditCategory(category: Category) {
-    setEditingCategory(category);
-    setCatFormOpen(true);
+  function openEditTag(tag: Tag) {
+    setEditingTag(tag);
+    setTagFormOpen(true);
   }
 
-  async function handleSaveCategory(data: CategoryFormData) {
+  async function handleSaveTag(data: TagFormData) {
     try {
       setFormLoading(true);
-      if (editingCategory) {
-        await api.put(`/categories/${editingCategory.id}`, data);
-        toast.success("Catégorie modifiée");
+      if (editingTag) {
+        await api.put(`/tags/${editingTag.id}`, data);
+        toast.success("Tag modifié");
       } else {
-        await api.post("/categories", data);
-        toast.success("Catégorie créée");
+        await api.post("/tags", data);
+        toast.success("Tag créé");
       }
-      setCatFormOpen(false);
+      setTagFormOpen(false);
       fetchData();
     } catch {
-      toast.error("Erreur lors de l'enregistrement de la catégorie");
+      toast.error("Erreur lors de l'enregistrement du tag");
     } finally {
       setFormLoading(false);
     }
   }
 
-  async function handleDeleteCategory() {
-    if (!catDeleteId) return;
+  async function handleDeleteTag() {
+    if (!tagDeleteId) return;
     try {
       setFormLoading(true);
-      await api.delete(`/categories/${catDeleteId}`);
-      toast.success("Catégorie supprimée");
-      setCatDeleteId(null);
+      await api.delete(`/tags/${tagDeleteId}`);
+      toast.success("Tag supprimé");
+      setTagDeleteId(null);
       fetchData();
     } catch {
       toast.error("Erreur lors de la suppression");
@@ -100,14 +97,12 @@ export default function CategoriesPage() {
     }
   }
 
-  // --- Rule Actions ---
-  
   function openAddRule() {
     setEditingRule(null);
     setRuleFormOpen(true);
   }
 
-  function openEditRule(rule: CategorizationRule) {
+  function openEditRule(rule: TaggingRule) {
     setEditingRule(rule);
     setRuleFormOpen(true);
   }
@@ -116,10 +111,10 @@ export default function CategoriesPage() {
     try {
       setFormLoading(true);
       if (editingRule) {
-        await api.put(`/categorization-rules/${editingRule.id}`, data);
+        await api.put(`/tagging-rules/${editingRule.id}`, data);
         toast.success("Règle modifiée");
       } else {
-        await api.post("/categorization-rules", data);
+        await api.post("/tagging-rules", data);
         toast.success("Règle créée");
       }
       setRuleFormOpen(false);
@@ -135,7 +130,7 @@ export default function CategoriesPage() {
     if (!ruleDeleteId) return;
     try {
       setFormLoading(true);
-      await api.delete(`/categorization-rules/${ruleDeleteId}`);
+      await api.delete(`/tagging-rules/${ruleDeleteId}`);
       toast.success("Règle supprimée");
       setRuleDeleteId(null);
       fetchData();
@@ -149,9 +144,8 @@ export default function CategoriesPage() {
   async function handleReapplyRules() {
     try {
       setReapplyLoading(true);
-      const res = await api.post<{ categorized_count: number }>("/categorization-rules/apply");
-      toast.success(`${res.categorized_count} transactions catégorisées avec succès`);
-      // Although we don't display transactions here, it's good to show the count.
+      const res = await api.post<{ tagged_count: number }>("/tagging-rules/apply");
+      toast.success(`${res.tagged_count} transactions taguées avec succès`);
     } catch {
       toast.error("Erreur lors de l'application des règles");
     } finally {
@@ -162,9 +156,9 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Catégories & Règles</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Tags & Règles</h1>
         <p className="text-sm text-muted">
-          Gérez vos catégories de dépenses et les règles d&apos;auto-catégorisation
+          Gérez vos tags et les règles d&apos;auto-tagging
         </p>
       </div>
 
@@ -184,12 +178,12 @@ export default function CategoriesPage() {
         <div className="text-center py-10 text-muted animate-pulse">Chargement...</div>
       ) : !error ? (
         <>
-          {/* CATEGORIES SECTION */}
+          {/* TAGS SECTION */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight">Catégories</h2>
+              <h2 className="text-lg font-semibold tracking-tight">Tags</h2>
               <button
-                onClick={openAddCategory}
+                onClick={openAddTag}
                 className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
               >
                 Ajouter
@@ -197,28 +191,28 @@ export default function CategoriesPage() {
             </div>
             
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {categories.map((cat) => (
+              {tags.map((tag) => (
                 <div
-                  key={cat.id}
+                  key={tag.id}
                   className="group flex items-center justify-between rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/30 hover:bg-card-hover"
                 >
                   <div className="flex items-center gap-3 truncate">
                     <div
                       className="h-4 w-4 shrink-0 rounded-full"
-                      style={{ backgroundColor: cat.color }}
+                      style={{ backgroundColor: tag.color }}
                     />
-                    <span className="truncate font-medium">{cat.name}</span>
+                    <span className="truncate font-medium">{tag.name}</span>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
-                      onClick={() => openEditCategory(cat)}
+                      onClick={() => openEditTag(tag)}
                       className="rounded p-1.5 text-muted hover:bg-background hover:text-foreground"
                       title="Modifier"
                     >
                       <EditIcon className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setCatDeleteId(cat.id)}
+                      onClick={() => setTagDeleteId(tag.id)}
                       className="rounded p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
                       title="Supprimer"
                     >
@@ -227,9 +221,9 @@ export default function CategoriesPage() {
                   </div>
                 </div>
               ))}
-              {categories.length === 0 && (
+              {tags.length === 0 && (
                 <div className="col-span-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-                  Aucune catégorie configurée
+                  Aucun tag configuré
                 </div>
               )}
             </div>
@@ -238,14 +232,14 @@ export default function CategoriesPage() {
           {/* RULES SECTION */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight">Règles d&apos;auto-catégorisation</h2>
+              <h2 className="text-lg font-semibold tracking-tight">Règles d&apos;auto-tagging</h2>
               <div className="flex gap-2">
                 <button
                   onClick={handleReapplyRules}
                   disabled={reapplyLoading}
                   className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-card-hover disabled:opacity-50"
                 >
-                  {reapplyLoading ? "Application..." : "Appliquer aux transactions non catégorisées"}
+                  {reapplyLoading ? "Application..." : "Appliquer aux transactions non taguées"}
                 </button>
                 <button
                   onClick={openAddRule}
@@ -261,7 +255,7 @@ export default function CategoriesPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/5">
                     <th className="px-4 py-3 font-medium">Mot-clé</th>
-                    <th className="px-4 py-3 font-medium">Catégorie</th>
+                    <th className="px-4 py-3 font-medium">Tag</th>
                     <th className="px-4 py-3 font-medium">Priorité</th>
                     <th className="px-4 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -278,16 +272,16 @@ export default function CategoriesPage() {
                         <tr key={rule.id} className="transition-colors hover:bg-card-hover">
                           <td className="px-4 py-3 font-medium">&ldquo;{rule.keyword}&rdquo;</td>
                           <td className="px-4 py-3">
-                            {rule.category ? (
+                            {rule.tag ? (
                               <div className="flex items-center gap-2">
                                 <div
                                   className="h-3 w-3 rounded-full"
-                                  style={{ backgroundColor: rule.category.color }}
+                                  style={{ backgroundColor: rule.tag.color }}
                                 />
-                                {rule.category.name}
+                                {rule.tag.name}
                               </div>
                             ) : (
-                              <span className="text-muted italic">Inconnue</span>
+                              <span className="text-muted italic">Inconnu</span>
                             )}
                           </td>
                           <td className="px-4 py-3">{rule.priority}</td>
@@ -317,33 +311,31 @@ export default function CategoriesPage() {
         </>
       ) : null}
 
-      {/* Forms & Dialogs */}
-      
-      <CategoryForm
-        key={catFormOpen ? "cat-open" : "cat-closed"}
-        open={catFormOpen}
-        category={editingCategory}
+      <TagForm
+        key={tagFormOpen ? "tag-open" : "tag-closed"}
+        open={tagFormOpen}
+        tag={editingTag}
         loading={formLoading}
-        onSubmit={handleSaveCategory}
-        onClose={() => setCatFormOpen(false)}
+        onSubmit={handleSaveTag}
+        onClose={() => setTagFormOpen(false)}
       />
 
       <ConfirmDialog
-        open={!!catDeleteId}
-        title="Supprimer la catégorie ?"
-        description="Les transactions associées à cette catégorie deviendront non catégorisées. Cette action est irréversible."
+        open={!!tagDeleteId}
+        title="Supprimer le tag ?"
+        description="Les transactions associées perdront ce tag. Cette action est irréversible."
         confirmLabel="Supprimer"
         variant="danger"
         loading={formLoading}
-        onConfirm={handleDeleteCategory}
-        onCancel={() => setCatDeleteId(null)}
+        onConfirm={handleDeleteTag}
+        onCancel={() => setTagDeleteId(null)}
       />
 
       <RuleForm
         key={ruleFormOpen ? "rule-open" : "rule-closed"}
         open={ruleFormOpen}
         rule={editingRule}
-        categories={categories}
+        tags={tags}
         loading={formLoading}
         onSubmit={handleSaveRule}
         onClose={() => setRuleFormOpen(false)}
@@ -362,8 +354,6 @@ export default function CategoriesPage() {
     </div>
   );
 }
-
-// --- Icons ---
 
 function EditIcon({ className }: { className?: string }) {
   return (

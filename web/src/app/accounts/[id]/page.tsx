@@ -315,7 +315,7 @@ export default function AccountDetailPage() {
                 <tr className="border-b border-border text-left text-xs text-muted">
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Libellé</th>
-                  <th className="px-4 py-3 font-medium">Catégorie</th>
+                  <th className="px-4 py-3 font-medium">Tags</th>
                   <th className="px-4 py-3 text-right font-medium">Montant</th>
                 </tr>
               </thead>
@@ -332,13 +332,24 @@ export default function AccountDetailPage() {
                       </td>
                       <td className="px-4 py-3">{tx.label}</td>
                       <td className="px-4 py-3 text-muted">
-                        {tx.category ? (
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className="inline-block h-2 w-2 rounded-full"
-                              style={{ backgroundColor: tx.category.color }}
-                            />
-                            {tx.category.name}
+                        {tx.tags.length > 0 ? (
+                          <span className="flex flex-wrap gap-1">
+                            {tx.tags.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                                style={{
+                                  backgroundColor: tag.color + "20",
+                                  color: tag.color,
+                                }}
+                              >
+                                <span
+                                  className="inline-block h-1.5 w-1.5 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                {tag.name}
+                              </span>
+                            ))}
                           </span>
                         ) : (
                           <span className="text-muted/50">—</span>

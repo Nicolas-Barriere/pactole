@@ -11,7 +11,7 @@ defmodule MoulaxWeb.TransactionController do
     opts =
       Map.take(
         params,
-        ~w(account_id category_id date_from date_to search page per_page sort_by sort_order)
+        ~w(account_id tag_id date_from date_to search page per_page sort_by sort_order)
       )
 
     result = Transactions.list_transactions(opts)
@@ -35,15 +35,20 @@ defmodule MoulaxWeb.TransactionController do
 
   @doc """
   POST /api/v1/accounts/:account_id/transactions — Create manual transaction.
-  Params: date, label, original_label (or use label), amount, optional currency, category_id, bank_reference.
+  Params: date, label, original_label (or use label), amount, optional currency, tag_ids, bank_reference.
   """
   def create(conn, %{"account_id" => account_id} = params) do
-    attrs =
-      params
-      |> map_create_params(account_id)
+    attrs = map_create_params(params, account_id)
+    tag_ids = params["tag_ids"] || []
 
     case Transactions.create_transaction(attrs) do
       {:ok, transaction} ->
+        if tag_ids != [] do
+          Transactions.set_transaction_tags(transaction.id, tag_ids)
+        end
+
+        {:ok, transaction} = Transactions.get_transaction(transaction.id)
+
         conn
         |> put_status(:created)
         |> put_resp_header("location", ~p"/api/v1/transactions/#{transaction.id}")
@@ -57,19 +62,27 @@ defmodule MoulaxWeb.TransactionController do
   end
 
   @doc """
-  PUT /api/v1/transactions/:id — Update transaction (category, label, etc.).
+  PUT /api/v1/transactions/:id — Update transaction (label, tags, etc.).
   """
   def update(conn, %{"id" => id} = params) do
     attrs = map_update_params(params)
+    tag_ids = params["tag_ids"]
 
     with {:ok, transaction} <- Transactions.fetch_transaction(id),
-         {:ok, updated} <- Transactions.update_transaction(transaction, attrs) do
-      json(conn, updated)
+         {:ok, _updated} <- Transactions.update_transaction(transaction, attrs),
+         :ok <- maybe_set_tags(id, tag_ids) do
+      {:ok, refreshed} = Transactions.get_transaction(id)
+      json(conn, refreshed)
     else
       {:error, :not_found} ->
         conn
         |> put_status(:not_found)
         |> json(%{errors: %{detail: "Not Found"}})
+
+      {:error, :invalid_tags} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{tag_ids: ["contain invalid tag IDs"]}})
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
@@ -79,14 +92,14 @@ defmodule MoulaxWeb.TransactionController do
   end
 
   @doc """
-  PATCH /api/v1/transactions/bulk-categorize — Bulk assign category to multiple transactions.
-  Params: transaction_ids (array of UUIDs), category_id (UUID or null to uncategorize).
+  PATCH /api/v1/transactions/bulk-tag — Bulk assign tags to multiple transactions.
+  Params: transaction_ids (array of UUIDs), tag_ids (array of tag UUIDs, empty to untag).
   """
-  def bulk_categorize(conn, params) do
+  def bulk_tag(conn, params) do
     ids = params["transaction_ids"] || []
-    category_id = params["category_id"]
+    tag_ids = params["tag_ids"] || []
 
-    case Transactions.bulk_categorize(ids, category_id) do
+    case Transactions.bulk_tag(ids, tag_ids) do
       {:ok, count} ->
         json(conn, %{updated_count: count})
     end
@@ -107,10 +120,19 @@ defmodule MoulaxWeb.TransactionController do
     end
   end
 
+  defp maybe_set_tags(_id, nil), do: :ok
+
+  defp maybe_set_tags(id, tag_ids) when is_list(tag_ids) do
+    case Transactions.set_transaction_tags(id, tag_ids) do
+      {:ok, _} -> :ok
+      {:error, :invalid_tags} -> {:error, :invalid_tags}
+    end
+  end
+
   defp map_create_params(params, account_id) do
     base =
       params
-      |> Map.take(~w(date label original_label amount currency category_id bank_reference))
+      |> Map.take(~w(date label original_label amount currency bank_reference))
       |> Map.reject(fn {_, v} -> v == nil or v == "" end)
 
     base
@@ -121,7 +143,7 @@ defmodule MoulaxWeb.TransactionController do
 
   defp map_update_params(params) do
     params
-    |> Map.take(~w(category_id label))
+    |> Map.take(~w(label))
     |> Map.reject(fn {_, v} -> v == nil end)
   end
 

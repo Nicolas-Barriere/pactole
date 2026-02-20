@@ -41,27 +41,27 @@ defmodule Moulax.TransactionsTest do
       assert hd(result.data).account_id == a1.id
     end
 
-    test "filters by category_id" do
+    test "filters by tag_id" do
       account = insert_account()
-      cat = insert_category()
+      tag = insert_tag()
 
       insert_transaction(%{
         account_id: account.id,
         label: "X",
         amount: Decimal.new("-1"),
-        category_id: cat.id
+        tag_ids: [tag.id]
       })
 
       insert_transaction(%{account_id: account.id, label: "Y", amount: Decimal.new("-2")})
 
-      result = Transactions.list_transactions(%{"category_id" => cat.id})
+      result = Transactions.list_transactions(%{"tag_id" => tag.id})
       assert result.meta.total_count == 1
-      assert hd(result.data).category_id == cat.id
+      assert hd(result.data).tags != []
     end
 
-    test "filters uncategorized with category_id uncategorized" do
+    test "filters untagged with tag_id untagged" do
       account = insert_account()
-      cat = insert_category()
+      tag = insert_tag()
 
       insert_transaction(%{account_id: account.id, label: "X", amount: Decimal.new("-1")})
 
@@ -69,12 +69,12 @@ defmodule Moulax.TransactionsTest do
         account_id: account.id,
         label: "Y",
         amount: Decimal.new("-2"),
-        category_id: cat.id
+        tag_ids: [tag.id]
       })
 
-      result = Transactions.list_transactions(%{"category_id" => "uncategorized"})
+      result = Transactions.list_transactions(%{"tag_id" => "untagged"})
       assert result.meta.total_count == 1
-      assert hd(result.data).category_id == nil
+      assert hd(result.data).tags == []
     end
 
     test "filters by date_from and date_to with ISO strings" do
@@ -452,15 +452,13 @@ defmodule Moulax.TransactionsTest do
   end
 
   describe "update_transaction/2" do
-    test "updates category and label" do
+    test "updates label" do
       account = insert_account()
-      cat = insert_category()
       tx = insert_transaction(%{account_id: account.id, label: "Old", amount: Decimal.new("-10")})
 
       assert {:ok, updated} =
-               Transactions.update_transaction(tx, %{category_id: cat.id, label: "New label"})
+               Transactions.update_transaction(tx, %{label: "New label"})
 
-      assert updated.category_id == cat.id
       assert updated.label == "New label"
     end
 
@@ -477,6 +475,59 @@ defmodule Moulax.TransactionsTest do
 
       assert {:error, changeset} = Transactions.update_transaction(tx, %{source: "invalid"})
       assert %{source: [_]} = errors_on(changeset)
+    end
+  end
+
+  describe "set_transaction_tags/2" do
+    test "sets tags for a transaction" do
+      account = insert_account()
+      tag1 = insert_tag()
+      tag2 = insert_tag()
+      tx = insert_transaction(%{account_id: account.id, label: "X", amount: Decimal.new("-1")})
+
+      Transactions.set_transaction_tags(tx.id, [tag1.id, tag2.id])
+
+      {:ok, got} = Transactions.get_transaction(tx.id)
+      tag_ids = Enum.map(got.tags, & &1.id) |> Enum.sort()
+      assert tag_ids == Enum.sort([tag1.id, tag2.id])
+    end
+
+    test "replaces existing tags" do
+      account = insert_account()
+      tag1 = insert_tag()
+      tag2 = insert_tag()
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          label: "X",
+          amount: Decimal.new("-1"),
+          tag_ids: [tag1.id]
+        })
+
+      Transactions.set_transaction_tags(tx.id, [tag2.id])
+
+      {:ok, got} = Transactions.get_transaction(tx.id)
+      assert length(got.tags) == 1
+      assert hd(got.tags).id == tag2.id
+    end
+
+    test "clears tags when empty list" do
+      account = insert_account()
+      tag = insert_tag()
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          label: "X",
+          amount: Decimal.new("-1"),
+          tag_ids: [tag.id]
+        })
+
+      Transactions.set_transaction_tags(tx.id, [])
+
+      {:ok, got} = Transactions.get_transaction(tx.id)
+      assert got.tags == []
     end
   end
 
@@ -509,10 +560,10 @@ defmodule Moulax.TransactionsTest do
     end
   end
 
-  describe "bulk_categorize/2" do
-    test "updates category for multiple transactions" do
+  describe "bulk_tag/2" do
+    test "sets tags for multiple transactions" do
       account = insert_account()
-      cat = insert_category()
+      tag = insert_tag()
 
       t1 =
         insert_transaction(%{
@@ -530,41 +581,32 @@ defmodule Moulax.TransactionsTest do
           amount: Decimal.new("-2")
         })
 
-      assert {:ok, 2} = Transactions.bulk_categorize([t1.id, t2.id], cat.id)
+      assert {:ok, 2} = Transactions.bulk_tag([t1.id, t2.id], [tag.id])
 
       assert {:ok, tx1} = Transactions.get_transaction(t1.id)
-      assert tx1.category_id == cat.id
-      assert {:ok, tx2} = Transactions.get_transaction(t2.id)
-      assert tx2.category_id == cat.id
+      assert length(tx1.tags) == 1
+      assert hd(tx1.tags).id == tag.id
     end
 
-    test "allows uncategorize with nil category_id" do
+    test "allows untag with empty tag_ids" do
       account = insert_account()
-      cat = insert_category()
+      tag = insert_tag()
 
       tx =
         insert_transaction(%{
           account_id: account.id,
           label: "A",
           amount: Decimal.new("-1"),
-          category_id: cat.id
+          tag_ids: [tag.id]
         })
 
-      assert {:ok, 1} = Transactions.bulk_categorize([tx.id], nil)
+      assert {:ok, 1} = Transactions.bulk_tag([tx.id], [])
       assert {:ok, updated} = Transactions.get_transaction(tx.id)
-      assert updated.category_id == nil
+      assert updated.tags == []
     end
 
     test "returns 0 when list is empty" do
-      assert {:ok, 0} = Transactions.bulk_categorize([], Ecto.UUID.generate())
-    end
-
-    test "returns 0 when none of the transaction IDs exist" do
-      assert {:ok, 0} =
-               Transactions.bulk_categorize(
-                 [Ecto.UUID.generate(), Ecto.UUID.generate()],
-                 Ecto.UUID.generate()
-               )
+      assert {:ok, 0} = Transactions.bulk_tag([], [Ecto.UUID.generate()])
     end
   end
 

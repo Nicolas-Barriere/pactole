@@ -327,11 +327,11 @@ function SpendingBreakdown({
     );
   }
 
-  const data = spending.by_category.map((c) => ({
-    name: c.category,
-    value: Math.abs(parseFloat(c.amount)),
-    color: c.color,
-    percentage: c.percentage,
+  const data = spending.by_tag.map((t) => ({
+    name: t.tag,
+    value: Math.abs(parseFloat(t.amount)),
+    color: t.color,
+    percentage: t.percentage,
   }));
 
   const hasData = data.length > 0;
@@ -339,7 +339,7 @@ function SpendingBreakdown({
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="mb-1 text-sm font-semibold text-muted">
-        Dépenses par catégorie
+        Dépenses par tag
       </h3>
       <p className="mb-4 text-xs text-muted">
         Total :{" "}
@@ -369,10 +369,10 @@ function SpendingBreakdown({
                   strokeWidth={0}
                   cursor="pointer"
                   onClick={(entry) => {
-                    const cat = entry?.name;
-                    if (cat && cat !== "Uncategorized") {
+                    const tag = entry?.name;
+                    if (tag && tag !== "Untagged") {
                       router.push(
-                        `/transactions?category=${encodeURIComponent(cat)}&month=${month}`,
+                        `/transactions?tag=${encodeURIComponent(tag)}&month=${month}`,
                       );
                     }
                   }}
@@ -563,8 +563,14 @@ function TopExpensesList({
               <span className="min-w-0 flex-1 truncate text-sm">
                 {expense.label}
               </span>
-              <span className="inline-flex items-center rounded-full bg-card-hover px-2 py-0.5 text-xs text-muted">
-                {expense.category}
+              <span className="inline-flex flex-wrap gap-1">
+                {expense.tags.length > 0 ? expense.tags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center rounded-full bg-card-hover px-2 py-0.5 text-xs text-muted">
+                    {tag}
+                  </span>
+                )) : (
+                  <span className="text-xs text-muted/50">—</span>
+                )}
               </span>
               <span className="text-xs text-muted">{expense.account}</span>
               <span className="shrink-0 text-sm font-semibold text-danger tabular-nums">

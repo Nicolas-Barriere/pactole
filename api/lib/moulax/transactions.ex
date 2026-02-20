@@ -1,13 +1,14 @@
 defmodule Moulax.Transactions do
   @moduledoc """
-  Context for transactions: list (paginated, filterable, searchable), CRUD, and bulk categorize.
+  Context for transactions: list (paginated, filterable, searchable), CRUD, and bulk tag.
   """
   import Ecto.Query
 
   alias Moulax.Repo
   alias Moulax.Transactions.Transaction
   alias Moulax.Accounts.Account
-  alias Moulax.Categories.Category
+  alias Moulax.Tags.Tag
+  alias Moulax.Tags.TransactionTag
 
   @default_per_page 50
   @default_sort_by "date"
@@ -18,7 +19,7 @@ defmodule Moulax.Transactions do
 
   Options (all optional):
   - `account_id` — filter by account UUID
-  - `category_id` — filter by category UUID; use `"uncategorized"` (string) to filter where category_id is nil
+  - `tag_id` — filter by tag UUID; use `"untagged"` to filter transactions with no tags
   - `date_from` — filter date >= (Date or ISO date string)
   - `date_to` — filter date <= (Date or ISO date string)
   - `search` — case-insensitive substring search on label
@@ -37,9 +38,9 @@ defmodule Moulax.Transactions do
 
     base =
       Transaction
-      |> preload([:account, :category])
+      |> preload([:account, :tags])
       |> apply_filter_account(opts)
-      |> apply_filter_category(opts)
+      |> apply_filter_tag(opts)
       |> apply_filter_date_from(opts)
       |> apply_filter_date_to(opts)
       |> apply_filter_search(opts)
@@ -74,16 +75,24 @@ defmodule Moulax.Transactions do
     end
   end
 
-  defp apply_filter_category(query, opts) do
-    case opts["category_id"] || opts[:category_id] do
-      "uncategorized" ->
-        where(query, [t], is_nil(t.category_id))
+  defp apply_filter_tag(query, opts) do
+    case opts["tag_id"] || opts[:tag_id] do
+      "untagged" ->
+        from(t in query,
+          left_join: tt in TransactionTag,
+          on: tt.transaction_id == t.id,
+          where: is_nil(tt.id)
+        )
 
       nil ->
         query
 
       id when is_binary(id) ->
-        where(query, [t], t.category_id == ^id)
+        from(t in query,
+          join: tt in TransactionTag,
+          on: tt.transaction_id == t.id,
+          where: tt.tag_id == ^id
+        )
     end
   end
 
@@ -150,7 +159,7 @@ defmodule Moulax.Transactions do
   Fetches a single transaction by ID. Returns `{:ok, transaction_map}` or `{:error, :not_found}`.
   """
   def get_transaction(id) do
-    case Repo.get(Transaction, id) |> Repo.preload([:account, :category]) do
+    case Repo.get(Transaction, id) |> Repo.preload([:account, :tags]) do
       nil -> {:error, :not_found}
       tx -> {:ok, transaction_to_response(tx)}
     end
@@ -175,21 +184,97 @@ defmodule Moulax.Transactions do
     |> Transaction.changeset(attrs)
     |> Repo.insert()
     |> case do
-      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :category]))}
+      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags]))}
       error -> error
     end
   end
 
   @doc """
-  Updates a transaction (e.g. category_id, label). Returns `{:ok, transaction_map}` or `{:error, changeset}`.
+  Updates a transaction (e.g. label). Returns `{:ok, transaction_map}` or `{:error, changeset}`.
   """
   def update_transaction(%Transaction{} = transaction, attrs) do
     transaction
     |> Transaction.changeset(attrs)
     |> Repo.update()
     |> case do
-      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :category]))}
+      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags]))}
       error -> error
+    end
+  end
+
+  @doc """
+  Sets the tags for a transaction (replaces existing tags).
+  """
+  def set_transaction_tags(transaction_id, tag_ids) when is_list(tag_ids) do
+    valid_tag_ids =
+      tag_ids
+      |> Enum.uniq()
+      |> then(fn ids ->
+        from(t in Tag, where: t.id in ^ids, select: t.id) |> Repo.all()
+      end)
+
+    if tag_ids != [] && valid_tag_ids == [] do
+      {:error, :invalid_tags}
+    else
+      Repo.transaction(fn ->
+        from(tt in TransactionTag, where: tt.transaction_id == ^transaction_id)
+        |> Repo.delete_all()
+
+        now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+        entries =
+          Enum.map(valid_tag_ids, fn tag_id ->
+            %{
+              id: Ecto.UUID.generate(),
+              transaction_id: transaction_id,
+              tag_id: tag_id,
+              inserted_at: now,
+              updated_at: now
+            }
+          end)
+
+        if entries != [] do
+          Repo.insert_all(TransactionTag, entries)
+        end
+      end)
+    end
+  end
+
+  @doc """
+  Bulk assign tags to multiple transactions by IDs.
+  Given a list of transaction IDs and tag_ids, sets those tags on all transactions.
+  Returns `{:ok, updated_count}`.
+  """
+  def bulk_tag(transaction_ids, tag_ids) when is_list(transaction_ids) and is_list(tag_ids) do
+    ids = Enum.filter(transaction_ids, &is_binary/1)
+
+    if ids == [] do
+      {:ok, 0}
+    else
+      Repo.transaction(fn ->
+        from(tt in TransactionTag, where: tt.transaction_id in ^ids)
+        |> Repo.delete_all()
+
+        now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+        unique_tag_ids = Enum.uniq(tag_ids)
+
+        entries =
+          for tx_id <- ids, tag_id <- unique_tag_ids do
+            %{
+              id: Ecto.UUID.generate(),
+              transaction_id: tx_id,
+              tag_id: tag_id,
+              inserted_at: now,
+              updated_at: now
+            }
+          end
+
+        if entries != [] do
+          Repo.insert_all(TransactionTag, entries)
+        end
+
+        length(ids)
+      end)
     end
   end
 
@@ -207,32 +292,6 @@ defmodule Moulax.Transactions do
     Repo.delete(transaction)
   end
 
-  @doc """
-  Bulk assign category to multiple transactions by IDs.
-  Given a list of transaction IDs and a category_id, updates all those transactions.
-  Returns `{:ok, updated_count}` or `{:error, reason}`.
-  """
-  def bulk_categorize(transaction_ids, category_id) when is_list(transaction_ids) do
-    ids = Enum.filter(transaction_ids, &is_binary/1)
-
-    if ids == [] do
-      {:ok, 0}
-    else
-      # Allow nil category_id to uncategorize
-      query = from t in Transaction, where: t.id in ^ids
-
-      {count, _} =
-        Repo.update_all(query,
-          set: [
-            category_id: category_id,
-            updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
-          ]
-        )
-
-      {:ok, count}
-    end
-  end
-
   defp transaction_to_response(%Transaction{} = tx) do
     %{
       id: tx.id,
@@ -243,8 +302,7 @@ defmodule Moulax.Transactions do
       original_label: tx.original_label,
       amount: format_decimal(tx.amount),
       currency: tx.currency,
-      category_id: tx.category_id,
-      category: category_ref(tx.category),
+      tags: Enum.map(tx.tags, &tag_ref/1),
       bank_reference: tx.bank_reference,
       source: tx.source
     }
@@ -253,8 +311,7 @@ defmodule Moulax.Transactions do
   defp account_ref(nil), do: nil
   defp account_ref(%Account{} = a), do: %{id: a.id, name: a.name, bank: a.bank, type: a.type}
 
-  defp category_ref(nil), do: nil
-  defp category_ref(%Category{} = c), do: %{id: c.id, name: c.name, color: c.color}
+  defp tag_ref(%Tag{} = t), do: %{id: t.id, name: t.name, color: t.color}
 
   defp format_decimal(nil), do: nil
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)

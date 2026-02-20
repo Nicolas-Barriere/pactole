@@ -9,7 +9,8 @@ defmodule Moulax.Dashboard do
   alias Moulax.Repo
   alias Moulax.Accounts.Account
   alias Moulax.Transactions.Transaction
-  alias Moulax.Categories.Category
+  alias Moulax.Tags.Tag
+  alias Moulax.Tags.TransactionTag
   alias Moulax.Imports.Import
 
   # ---------------------------------------------------------------------------
@@ -79,8 +80,12 @@ defmodule Moulax.Dashboard do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Returns income, expense totals and per-category expense breakdown for a
+  Returns income, expense totals and per-tag expense breakdown for a
   given month (format `"YYYY-MM"`).
+
+  Note: since transactions can have multiple tags, a transaction may appear
+  in multiple tag groups. Percentages may sum to more than 100%.
+  Transactions with no tags appear as "Untagged".
   """
   def spending(month_str) do
     {date_from, date_to} = month_range(month_str)
@@ -104,47 +109,80 @@ defmodule Moulax.Dashboard do
       )
       |> Repo.one() || Decimal.new(0)
 
-    by_category_raw =
+    by_tag_raw =
       from(t in Transaction,
-        left_join: c in Category,
-        on: t.category_id == c.id,
+        join: tt in TransactionTag,
+        on: tt.transaction_id == t.id,
+        join: tg in Tag,
+        on: tt.tag_id == tg.id,
         where:
           t.account_id in ^account_ids and
             t.date >= ^date_from and t.date <= ^date_to and t.amount < 0,
-        group_by: [c.id, c.name, c.color],
-        select: %{category: c.name, color: c.color, amount: sum(t.amount)},
+        group_by: [tg.id, tg.name, tg.color],
+        select: %{tag: tg.name, color: tg.color, amount: sum(t.amount)},
         order_by: [asc: sum(t.amount)]
       )
       |> Repo.all()
 
+    untagged_amount =
+      from(t in Transaction,
+        left_join: tt in TransactionTag,
+        on: tt.transaction_id == t.id,
+        where:
+          t.account_id in ^account_ids and
+            t.date >= ^date_from and t.date <= ^date_to and
+            t.amount < 0 and is_nil(tt.id),
+        select: sum(t.amount)
+      )
+      |> Repo.one()
+
     abs_total = Decimal.abs(total_expenses)
 
-    by_category =
-      Enum.map(by_category_raw, fn cat ->
-        pct =
-          if Decimal.eq?(abs_total, Decimal.new(0)) do
-            0.0
-          else
-            Decimal.div(Decimal.abs(cat.amount), abs_total)
-            |> Decimal.mult(100)
-            |> Decimal.to_float()
-            |> Float.round(1)
-          end
-
+    by_tag =
+      by_tag_raw
+      |> Enum.map(fn row ->
         %{
-          category: cat.category || "Uncategorized",
-          color: cat.color || "#9E9E9E",
-          amount: format_decimal(cat.amount),
-          percentage: pct
+          tag: row.tag,
+          color: row.color,
+          amount: format_decimal(row.amount),
+          percentage: calc_percentage(row.amount, abs_total)
         }
       end)
+
+    by_tag =
+      if untagged_amount && !Decimal.eq?(untagged_amount, Decimal.new(0)) do
+        by_tag ++
+          [
+            %{
+              tag: "Untagged",
+              color: "#9E9E9E",
+              amount: format_decimal(untagged_amount),
+              percentage: calc_percentage(untagged_amount, abs_total)
+            }
+          ]
+      else
+        by_tag
+      end
 
     %{
       month: month_str,
       total_expenses: format_decimal(total_expenses),
       total_income: format_decimal(total_income),
-      by_category: by_category
+      by_tag: by_tag
     }
+  end
+
+  defp calc_percentage(_amount, abs_total) when abs_total == 0, do: 0.0
+
+  defp calc_percentage(amount, abs_total) do
+    if Decimal.eq?(abs_total, Decimal.new(0)) do
+      0.0
+    else
+      Decimal.div(Decimal.abs(amount), abs_total)
+      |> Decimal.mult(100)
+      |> Decimal.to_float()
+      |> Float.round(1)
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -209,8 +247,6 @@ defmodule Moulax.Dashboard do
       from(t in Transaction,
         join: a in Account,
         on: t.account_id == a.id,
-        left_join: c in Category,
-        on: t.category_id == c.id,
         where:
           t.account_id in ^account_ids and
             t.date >= ^date_from and t.date <= ^date_to and t.amount < 0,
@@ -221,18 +257,25 @@ defmodule Moulax.Dashboard do
           date: t.date,
           label: t.label,
           amount: t.amount,
-          category: c.name,
           account: a.name
         }
       )
       |> Repo.all()
       |> Enum.map(fn e ->
+        tx = Repo.get!(Transaction, e.id) |> Repo.preload(:tags)
+
+        tags =
+          case tx.tags do
+            [] -> ["Untagged"]
+            tags -> Enum.map(tags, & &1.name)
+          end
+
         %{
           id: e.id,
           date: Date.to_iso8601(e.date),
           label: e.label,
           amount: format_decimal(e.amount),
-          category: e.category || "Uncategorized",
+          tags: tags,
           account: e.account
         }
       end)

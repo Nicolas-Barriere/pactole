@@ -103,10 +103,10 @@ defmodule MoulaxWeb.DashboardControllerTest do
   # ---------------------------------------------------------------------------
 
   describe "GET /api/v1/dashboard/spending" do
-    test "returns spending breakdown by category for a month", %{conn: conn} do
+    test "returns spending breakdown by tag for a month", %{conn: conn} do
       account = insert_account()
-      food = insert_category(%{name: "Alimentation", color: "#4CAF50"})
-      transport = insert_category(%{name: "Transport", color: "#2196F3"})
+      food = insert_tag(%{name: "Alimentation", color: "#4CAF50"})
+      transport = insert_tag(%{name: "Transport", color: "#2196F3"})
 
       insert_transaction(%{
         account_id: account.id,
@@ -120,7 +120,7 @@ defmodule MoulaxWeb.DashboardControllerTest do
         date: ~D[2026-02-05],
         label: "Groceries",
         amount: Decimal.new("-200.00"),
-        category_id: food.id
+        tag_ids: [food.id]
       })
 
       insert_transaction(%{
@@ -128,7 +128,7 @@ defmodule MoulaxWeb.DashboardControllerTest do
         date: ~D[2026-02-06],
         label: "Metro",
         amount: Decimal.new("-50.00"),
-        category_id: transport.id
+        tag_ids: [transport.id]
       })
 
       insert_transaction(%{
@@ -147,15 +147,10 @@ defmodule MoulaxWeb.DashboardControllerTest do
       assert Decimal.equal?(Decimal.new(data["total_income"]), Decimal.new("2500.00"))
       assert Decimal.equal?(Decimal.new(data["total_expenses"]), Decimal.new("-350.00"))
 
-      categories = Enum.map(data["by_category"], & &1["category"])
-      assert "Alimentation" in categories
-      assert "Transport" in categories
-      assert "Uncategorized" in categories
-
-      total_pct =
-        Enum.reduce(data["by_category"], 0.0, fn c, acc -> acc + c["percentage"] end)
-
-      assert_in_delta total_pct, 100.0, 0.5
+      tags = Enum.map(data["by_tag"], & &1["tag"])
+      assert "Alimentation" in tags
+      assert "Transport" in tags
+      assert "Untagged" in tags
     end
 
     test "excludes archived accounts from spending", %{conn: conn} do
@@ -192,7 +187,7 @@ defmodule MoulaxWeb.DashboardControllerTest do
 
       assert Decimal.equal?(Decimal.new(data["total_expenses"]), Decimal.new("0"))
       assert Decimal.equal?(Decimal.new(data["total_income"]), Decimal.new("0"))
-      assert data["by_category"] == []
+      assert data["by_tag"] == []
     end
 
     test "uses current month when month is not provided", %{conn: conn} do
@@ -359,14 +354,14 @@ defmodule MoulaxWeb.DashboardControllerTest do
   describe "GET /api/v1/dashboard/top-expenses" do
     test "returns top N expenses ordered by amount for a month", %{conn: conn} do
       account = insert_account(%{name: "My Account"})
-      housing = insert_category(%{name: "Logement", color: "#FF5722"})
+      housing = insert_tag(%{name: "Logement", color: "#FF5722"})
 
       insert_transaction(%{
         account_id: account.id,
         date: ~D[2026-02-05],
         label: "LOYER",
         amount: Decimal.new("-850.00"),
-        category_id: housing.id
+        tag_ids: [housing.id]
       })
 
       insert_transaction(%{
@@ -401,12 +396,12 @@ defmodule MoulaxWeb.DashboardControllerTest do
       [first, second] = data["expenses"]
       assert first["label"] == "LOYER"
       assert Decimal.equal?(Decimal.new(first["amount"]), Decimal.new("-850.00"))
-      assert first["category"] == "Logement"
+      assert first["tags"] == ["Logement"]
       assert first["account"] == "My Account"
 
       assert second["label"] == "Groceries"
       assert Decimal.equal?(Decimal.new(second["amount"]), Decimal.new("-200.00"))
-      assert second["category"] == "Uncategorized"
+      assert second["tags"] == ["Untagged"]
     end
 
     test "returns empty expenses for month with no data", %{conn: conn} do

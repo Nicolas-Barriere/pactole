@@ -136,17 +136,18 @@ defmodule MoulaxWeb.TransactionControllerTest do
           amount: Decimal.new("-10")
         })
 
-      cat = insert_category()
+      tag = insert_tag()
 
       conn =
         put(conn, ~p"/api/v1/transactions/#{tx.id}", %{
           "label" => "Updated label",
-          "category_id" => cat.id
+          "tag_ids" => [tag.id]
         })
 
       data = json_response(conn, 200)
       assert data["label"] == "Updated label"
-      assert data["category_id"] == cat.id
+      assert [%{"id" => tag_id}] = data["tags"]
+      assert tag_id == tag.id
     end
 
     test "returns 404 when transaction not found", %{conn: conn} do
@@ -165,15 +166,15 @@ defmodule MoulaxWeb.TransactionControllerTest do
 
       conn =
         put(conn, ~p"/api/v1/transactions/#{tx.id}", %{
-          "category_id" => Ecto.UUID.generate()
+          "tag_ids" => [Ecto.UUID.generate()]
         })
 
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
 
-  describe "bulk_categorize PATCH /api/v1/transactions/bulk-categorize" do
-    test "updates category for given transaction ids", %{conn: conn, account: account} do
+  describe "bulk_tag PATCH /api/v1/transactions/bulk-tag" do
+    test "updates tags for given transaction ids", %{conn: conn, account: account} do
       t1 =
         insert_transaction(%{
           account_id: account.id,
@@ -190,12 +191,12 @@ defmodule MoulaxWeb.TransactionControllerTest do
           amount: Decimal.new("-2")
         })
 
-      cat = insert_category()
+      tag = insert_tag()
 
       conn =
-        patch(conn, ~p"/api/v1/transactions/bulk-categorize", %{
+        patch(conn, ~p"/api/v1/transactions/bulk-tag", %{
           "transaction_ids" => [t1.id, t2.id],
-          "category_id" => cat.id
+          "tag_ids" => [tag.id]
         })
 
       data = json_response(conn, 200)

@@ -1,27 +1,29 @@
-defmodule MoulaxWeb.CategoryController do
+defmodule MoulaxWeb.TaggingRuleController do
   use MoulaxWeb, :controller
 
-  alias Moulax.Categories
-  alias Moulax.Categories.Category
+  alias Moulax.Tags.Rules
 
   @doc """
-  GET /api/v1/categories — List all categories.
+  GET /api/v1/tagging-rules — List all rules (ordered by priority desc).
   """
   def index(conn, _params) do
-    categories = Categories.list_categories()
-    json(conn, categories)
+    rules = Rules.list_rules()
+    json(conn, rules)
   end
 
   @doc """
-  POST /api/v1/categories — Create category.
+  POST /api/v1/tagging-rules — Create rule.
+  Params: keyword, tag_id, optional priority.
   """
-  def create(conn, %{} = params) do
-    case Categories.create_category(params) do
-      {:ok, %Category{} = category} ->
+  def create(conn, params) do
+    attrs = map_params_to_attrs(params)
+
+    case Rules.create_rule(attrs) do
+      {:ok, rule} ->
         conn
         |> put_status(:created)
-        |> put_resp_header("location", ~p"/api/v1/categories/#{category.id}")
-        |> json(category)
+        |> put_resp_header("location", ~p"/api/v1/tagging-rules/#{rule.id}")
+        |> json(rule)
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
@@ -31,12 +33,12 @@ defmodule MoulaxWeb.CategoryController do
   end
 
   @doc """
-  GET /api/v1/categories/:id — Get category.
+  GET /api/v1/tagging-rules/:id — Show a single rule.
   """
   def show(conn, %{"id" => id}) do
-    case Categories.get_category(id) do
-      {:ok, category} ->
-        json(conn, category)
+    case Rules.get_rule(id) do
+      {:ok, rule} ->
+        json(conn, rule)
 
       {:error, :not_found} ->
         conn
@@ -46,11 +48,13 @@ defmodule MoulaxWeb.CategoryController do
   end
 
   @doc """
-  PUT /api/v1/categories/:id — Update category.
+  PUT /api/v1/tagging-rules/:id — Update rule.
   """
   def update(conn, %{"id" => id} = params) do
-    with {:ok, category} <- Categories.get_category(id),
-         {:ok, %Category{} = updated} <- Categories.update_category(category, params) do
+    attrs = map_params_to_attrs(params)
+
+    with {:ok, rule} <- Rules.fetch_rule(id),
+         {:ok, updated} <- Rules.update_rule(rule, attrs) do
       json(conn, updated)
     else
       {:error, :not_found} ->
@@ -66,12 +70,11 @@ defmodule MoulaxWeb.CategoryController do
   end
 
   @doc """
-  DELETE /api/v1/categories/:id — Delete category.
+  DELETE /api/v1/tagging-rules/:id — Delete rule.
   """
   def delete(conn, %{"id" => id}) do
-    case Categories.get_category(id) do
-      {:ok, category} ->
-        {:ok, _} = Categories.delete_category(category)
+    case Rules.delete_rule(id) do
+      {:ok, _rule} ->
         send_resp(conn, :no_content, "")
 
       {:error, :not_found} ->
@@ -79,6 +82,22 @@ defmodule MoulaxWeb.CategoryController do
         |> put_status(:not_found)
         |> json(%{errors: %{detail: "Not Found"}})
     end
+  end
+
+  @doc """
+  POST /api/v1/tagging-rules/apply — Apply rules to untagged transactions.
+  """
+  def apply_rules(conn, _params) do
+    case Rules.apply_rules_to_untagged() do
+      {:ok, count} ->
+        json(conn, %{tagged_count: count})
+    end
+  end
+
+  defp map_params_to_attrs(params) do
+    params
+    |> Map.take(["keyword", "tag_id", "priority"])
+    |> Map.reject(fn {_, v} -> v == nil or v == "" end)
   end
 
   defp changeset_errors(changeset) do

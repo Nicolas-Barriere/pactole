@@ -1,17 +1,17 @@
-defmodule Moulax.Categories.CategorizationRule do
+defmodule Moulax.Tags.TaggingRule do
   @moduledoc """
-  Ecto schema for a categorization rule (keyword → category).
+  Ecto schema for a tagging rule (keyword -> tag).
   """
   use Ecto.Schema
 
   import Ecto.Changeset
 
-  alias Moulax.Categories.Category
+  alias Moulax.Tags.Tag
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
           keyword: String.t(),
-          category_id: Ecto.UUID.t(),
+          tag_id: Ecto.UUID.t(),
           priority: integer(),
           inserted_at: DateTime.t(),
           updated_at: DateTime.t()
@@ -19,16 +19,16 @@ defmodule Moulax.Categories.CategorizationRule do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
-  schema "categorization_rules" do
+  schema "tagging_rules" do
     field :keyword, :string
     field :priority, :integer
 
-    belongs_to :category, Category
+    belongs_to :tag, Tag
 
     timestamps()
   end
 
-  @required_fields [:keyword, :category_id]
+  @required_fields [:keyword, :tag_id]
   @optional_fields [:priority]
 
   @doc false
@@ -36,7 +36,7 @@ defmodule Moulax.Categories.CategorizationRule do
     rule
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
-    |> foreign_key_constraint(:category_id)
+    |> foreign_key_constraint(:tag_id, name: :categorization_rules_category_id_fkey)
     |> put_priority_default()
   end
 

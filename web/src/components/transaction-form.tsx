@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import type { Account, Category } from "@/types";
+import type { Account, Tag } from "@/types";
 
 export interface TransactionFormData {
   date: string;
   label: string;
   amount: string;
-  category_id: string | null;
+  tag_ids: string[];
   account_id: string;
 }
 
 interface TransactionFormProps {
   open: boolean;
   accounts: Account[];
-  categories: Category[];
+  tags: Tag[];
   defaultAccountId?: string;
   loading?: boolean;
   onSubmit: (data: TransactionFormData) => void;
@@ -28,7 +28,7 @@ function todayISO() {
 export function TransactionForm({
   open,
   accounts,
-  categories,
+  tags,
   defaultAccountId = "",
   loading = false,
   onSubmit,
@@ -38,7 +38,7 @@ export function TransactionForm({
     date: todayISO(),
     label: "",
     amount: "",
-    category_id: null,
+    tag_ids: [],
     account_id: defaultAccountId,
   });
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
@@ -57,6 +57,15 @@ export function TransactionForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (validate()) onSubmit(form);
+  }
+
+  function toggleTag(tagId: string) {
+    setForm((prev) => ({
+      ...prev,
+      tag_ids: prev.tag_ids.includes(tagId)
+        ? prev.tag_ids.filter((id) => id !== tagId)
+        : [...prev.tag_ids, tagId],
+    }));
   }
 
   if (!open) return null;
@@ -141,26 +150,35 @@ export function TransactionForm({
 
           <div>
             <label className="mb-1 block text-sm font-medium">
-              Catégorie{" "}
+              Tags{" "}
               <span className="font-normal text-muted">(optionnel)</span>
             </label>
-            <select
-              value={form.category_id ?? ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  category_id: e.target.value || null,
-                })
-              }
-              className={`${inputBase} border-border`}
-            >
-              <option value="">Aucune</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((t) => {
+                const selected = form.tag_ids.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleTag(t.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted hover:border-primary/30 hover:text-foreground"
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    {t.name}
+                  </button>
+                );
+              })}
+              {tags.length === 0 && (
+                <span className="text-xs text-muted">Aucun tag disponible</span>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

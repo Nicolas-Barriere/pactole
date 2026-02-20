@@ -1,15 +1,16 @@
 defmodule Moulax.Imports do
   @moduledoc """
   Context for CSV imports: create import records, run the import pipeline
-  (detect parser → parse → deduplicate → categorize → insert), and query imports.
+  (detect parser -> parse -> deduplicate -> tag -> insert), and query imports.
   """
   import Ecto.Query
 
   alias Moulax.Repo
   alias Moulax.Imports.Import
   alias Moulax.Parsers
-  alias Moulax.Categories.Category
-  alias Moulax.Categories.Rules
+  alias Moulax.Tags.Tag
+  alias Moulax.Tags.Rules
+  alias Moulax.Tags.TransactionTag
   alias Moulax.Transactions.Transaction
 
   @doc """
@@ -25,7 +26,7 @@ defmodule Moulax.Imports do
   Runs the full import pipeline:
   1. Detect parser from CSV content
   2. Parse CSV into normalized rows
-  3. For each row: deduplicate, categorize, insert
+  3. For each row: deduplicate, tag, insert
   4. Update import record with counts and status
 
   Returns `{:ok, import_map}` or `{:error, reason}`.
@@ -112,14 +113,14 @@ defmodule Moulax.Imports do
   end
 
   defp process_rows(account_id, rows) do
-    category_names = load_category_names()
+    tag_names = load_tag_names()
 
     {imported, skipped, errored, errors_rev, details_rev} =
       rows
       |> Enum.with_index(2)
       |> Enum.reduce({0, 0, 0, [], []}, fn {row, row_index},
                                            {imported, skipped, errored, errors, details} ->
-        category_id = Rules.match_category(row.label)
+        tag_ids = Rules.match_tags(row.label)
 
         attrs = %{
           account_id: account_id,
@@ -129,20 +130,29 @@ defmodule Moulax.Imports do
           amount: row.amount,
           currency: row[:currency] || "EUR",
           bank_reference: row[:bank_reference],
-          category_id: category_id,
           source: "csv_import"
         }
+
+        tag_label =
+          case tag_ids do
+            [] -> nil
+            ids -> ids |> Enum.map(&tag_names[&1]) |> Enum.reject(&is_nil/1) |> Enum.join(", ")
+          end
 
         base_detail = %{
           "row" => row_index,
           "date" => to_string(row.date),
           "label" => row.label,
           "amount" => to_string(row.amount),
-          "category" => category_names[category_id]
+          "tags" => tag_label
         }
 
         case insert_transaction(attrs) do
-          {:ok, _tx} ->
+          {:ok, tx} ->
+            if tag_ids != [] do
+              insert_transaction_tags(tx.id, tag_ids)
+            end
+
             detail = Map.put(base_detail, "status", "added")
             {imported + 1, skipped, errored, errors, [detail | details]}
 
@@ -161,10 +171,10 @@ defmodule Moulax.Imports do
     {imported, skipped, errored, Enum.reverse(errors_rev), Enum.reverse(details_rev)}
   end
 
-  defp load_category_names do
-    Category
+  defp load_tag_names do
+    Tag
     |> Repo.all()
-    |> Map.new(fn cat -> {cat.id, cat.name} end)
+    |> Map.new(fn tag -> {tag.id, tag.name} end)
   end
 
   defp insert_transaction(attrs) do
@@ -182,6 +192,25 @@ defmodule Moulax.Imports do
           {:error, changeset}
         end
     end
+  end
+
+  defp insert_transaction_tags(transaction_id, tag_ids) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    entries =
+      tag_ids
+      |> Enum.uniq()
+      |> Enum.map(fn tag_id ->
+        %{
+          id: Ecto.UUID.generate(),
+          transaction_id: transaction_id,
+          tag_id: tag_id,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    Repo.insert_all(TransactionTag, entries)
   end
 
   defp duplicate_error?(errors) do

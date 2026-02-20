@@ -30,7 +30,7 @@ defmodule Moulax.DashboardTest do
   describe "spending/1" do
     test "calculates correct income and expenses" do
       account = insert_account()
-      food = insert_category(%{name: "Food", color: "#000000"})
+      food = insert_tag(%{name: "Food", color: "#000000"})
 
       insert_transaction(%{
         account_id: account.id,
@@ -44,7 +44,7 @@ defmodule Moulax.DashboardTest do
         date: ~D[2026-02-10],
         label: "Market",
         amount: Decimal.new("-300.00"),
-        category_id: food.id
+        tag_ids: [food.id]
       })
 
       result = Dashboard.spending("2026-02")
@@ -52,10 +52,10 @@ defmodule Moulax.DashboardTest do
       assert result.total_income == "1000.00"
       assert result.total_expenses == "-300.00"
 
-      [cat] = result.by_category
-      assert cat.category == "Food"
-      assert cat.amount == "-300.00"
-      assert cat.percentage == 100.0
+      [tag_data] = result.by_tag
+      assert tag_data.tag == "Food"
+      assert tag_data.amount == "-300.00"
+      assert tag_data.percentage == 100.0
     end
   end
 

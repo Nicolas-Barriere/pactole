@@ -28,7 +28,7 @@ export interface AccountRef {
   type: AccountType;
 }
 
-export interface CategoryRef {
+export interface TagRef {
   id: string;
   name: string;
   color: string;
@@ -43,15 +43,14 @@ export interface Transaction {
   original_label: string;
   amount: string; // Decimal as string — negative = expense, positive = income
   currency: string;
-  category_id: string | null;
-  category: CategoryRef | null;
+  tags: TagRef[];
   bank_reference: string | null;
   source: TransactionSource;
 }
 
-/* ── Category ────────────────────────────────────────── */
+/* ── Tag ─────────────────────────────────────────────── */
 
-export interface Category {
+export interface Tag {
   id: string;
   name: string;
   color: string; // hex color
@@ -59,13 +58,13 @@ export interface Category {
   updated_at: string;
 }
 
-/* ── Categorization Rule ─────────────────────────────── */
+/* ── Tagging Rule ────────────────────────────────────── */
 
-export interface CategorizationRule {
+export interface TaggingRule {
   id: string;
   keyword: string;
-  category_id: string;
-  category: Category | null;
+  tag_id: string;
+  tag: Tag | null;
   priority: number;
   inserted_at: string;
   updated_at: string;
@@ -87,7 +86,7 @@ export interface ImportRowDetail {
   date: string;
   label: string;
   amount: string;
-  category: string | null;
+  tags: string | null;
   status: ImportRowStatus;
   error?: string;
 }
@@ -122,8 +121,8 @@ export interface DashboardSummary {
   }[];
 }
 
-export interface SpendingCategory {
-  category: string;
+export interface SpendingTag {
+  tag: string;
   color: string;
   amount: string;
   percentage: number;
@@ -133,7 +132,7 @@ export interface DashboardSpending {
   month: string;
   total_expenses: string;
   total_income: string;
-  by_category: SpendingCategory[];
+  by_tag: SpendingTag[];
 }
 
 export interface MonthlyTrend {
@@ -152,7 +151,7 @@ export interface TopExpense {
   date: string;
   label: string;
   amount: string;
-  category: string;
+  tags: string[];
   account: string;
 }
 

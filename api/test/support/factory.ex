@@ -6,8 +6,9 @@ defmodule Moulax.Factory do
 
   alias Moulax.Repo
   alias Moulax.Accounts.Account
-  alias Moulax.Categories.Category
-  alias Moulax.Categories.CategorizationRule
+  alias Moulax.Tags.Tag
+  alias Moulax.Tags.TaggingRule
+  alias Moulax.Tags.TransactionTag
   alias Moulax.Transactions.Transaction
   alias Moulax.Imports.Import
 
@@ -27,13 +28,13 @@ defmodule Moulax.Factory do
   end
 
   @doc """
-  Inserts a Category. Generates a unique name unless one is provided.
+  Inserts a Tag. Generates a unique name unless one is provided.
   Accepts atom-keyed attrs.
   """
-  def insert_category(attrs \\ %{}) do
-    defaults = %{name: "Category #{:erlang.unique_integer([:positive])}", color: "#3b82f6"}
+  def insert_tag(attrs \\ %{}) do
+    defaults = %{name: "Tag #{:erlang.unique_integer([:positive])}", color: "#3b82f6"}
     merged = Map.merge(defaults, atomize_keys(attrs))
-    %Category{} |> Category.changeset(merged) |> Repo.insert!()
+    %Tag{} |> Tag.changeset(merged) |> Repo.insert!()
   end
 
   @doc """
@@ -45,6 +46,7 @@ defmodule Moulax.Factory do
     attrs = atomize_keys(attrs)
     label = attrs[:label] || "Test Transaction"
     original_label = attrs[:original_label] || label
+    tag_ids = attrs[:tag_ids] || []
 
     defaults = %{
       date: ~D[2026-01-01],
@@ -52,26 +54,44 @@ defmodule Moulax.Factory do
       original_label: original_label,
       amount: Decimal.new("-10.00"),
       currency: "EUR",
-      source: "manual",
-      category_id: nil
+      source: "manual"
     }
 
-    merged = Map.merge(defaults, attrs)
-    %Transaction{} |> Transaction.changeset(merged) |> Repo.insert!()
+    merged = Map.merge(defaults, Map.drop(attrs, [:tag_ids]))
+    tx = %Transaction{} |> Transaction.changeset(merged) |> Repo.insert!()
+
+    if tag_ids != [] do
+      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+      entries =
+        Enum.map(tag_ids, fn tag_id ->
+          %{
+            id: Ecto.UUID.generate(),
+            transaction_id: tx.id,
+            tag_id: tag_id,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+
+      Repo.insert_all(TransactionTag, entries)
+    end
+
+    tx
   end
 
   @doc """
-  Inserts a CategorizationRule with category preloaded.
-  Requires `keyword` and `category_id`. Accepts atom-keyed attrs.
+  Inserts a TaggingRule with tag preloaded.
+  Requires `keyword` and `tag_id`. Accepts atom-keyed attrs.
   """
   def insert_rule(attrs) do
     defaults = %{priority: 0}
     merged = Map.merge(defaults, atomize_keys(attrs))
 
-    %CategorizationRule{}
-    |> CategorizationRule.changeset(merged)
+    %TaggingRule{}
+    |> TaggingRule.changeset(merged)
     |> Repo.insert!()
-    |> Repo.preload(:category)
+    |> Repo.preload(:tag)
   end
 
   @doc """
