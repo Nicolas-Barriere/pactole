@@ -25,6 +25,8 @@ defmodule MoulaxWeb.Router do
     resources "/tagging-rules", TaggingRuleController, except: [:new, :edit]
     post "/tagging-rules/apply", TaggingRuleController, :apply_rules
 
+    get "/currencies", CurrencyController, :index
+
     get "/dashboard/summary", DashboardController, :summary
     get "/dashboard/spending", DashboardController, :spending
     get "/dashboard/trends", DashboardController, :trends

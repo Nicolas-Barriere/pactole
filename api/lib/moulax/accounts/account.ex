@@ -6,6 +6,8 @@ defmodule Moulax.Accounts.Account do
 
   import Ecto.Changeset
 
+  alias Moulax.Currencies
+
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
           name: String.t(),
@@ -41,6 +43,7 @@ defmodule Moulax.Accounts.Account do
     |> validate_required(@required_fields)
     |> validate_inclusion(:type, ["checking", "savings", "brokerage", "crypto"])
     |> put_defaults()
+    |> validate_inclusion(:currency, Currencies.codes())
   end
 
   defp put_defaults(changeset) do

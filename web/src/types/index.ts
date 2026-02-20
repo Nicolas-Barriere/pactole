@@ -1,6 +1,35 @@
 /* ── Account ─────────────────────────────────────────── */
 
 export type AccountType = "checking" | "savings" | "brokerage" | "crypto";
+export const CURRENCIES = [
+  "EUR",
+  "USD",
+  "GBP",
+  "CHF",
+  "JPY",
+  "CAD",
+  "AUD",
+  "NOK",
+  "SEK",
+  "DKK",
+  "PLN",
+  "CZK",
+  "HUF",
+  "RON",
+  "BTC",
+  "ETH",
+  "SOL",
+  "USDC",
+  "USDT",
+  "XRP",
+  "BNB",
+  "ADA",
+] as const;
+export type CurrencyCode = (typeof CURRENCIES)[number];
+export interface CurrenciesResponse {
+  fiat: CurrencyCode[];
+  crypto: CurrencyCode[];
+}
 
 export interface Account {
   id: string;
@@ -8,7 +37,7 @@ export interface Account {
   bank: string;
   type: AccountType;
   initial_balance: string; // Decimal as string from backend
-  currency: string;
+  currency: CurrencyCode;
   archived: boolean;
   balance: string; // computed: initial_balance + sum(transactions)
   transaction_count: number;
@@ -42,7 +71,7 @@ export interface Transaction {
   label: string;
   original_label: string;
   amount: string; // Decimal as string — negative = expense, positive = income
-  currency: string;
+  currency: CurrencyCode;
   tags: TagRef[];
   bank_reference: string | null;
   source: TransactionSource;

@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import type { Account, AccountType } from "@/types";
+import { useEffect, useState } from "react";
+import { currencies } from "@/lib/api";
+import type {
+  Account,
+  AccountType,
+  CurrenciesResponse,
+  CurrencyCode,
+} from "@/types";
 
 /* ── Shared constants ────────────────────────────────── */
 
@@ -40,7 +46,7 @@ export interface AccountFormData {
   bank: string;
   type: AccountType;
   initial_balance: string;
-  currency: string;
+  currency: CurrencyCode;
 }
 
 interface AccountFormProps {
@@ -68,6 +74,26 @@ function initialFormData(account?: Account | null, initialBank?: string): Accoun
   return { name: "", bank: initialBank || "", type: "checking", initial_balance: "0", currency: "EUR" };
 }
 
+const FALLBACK_CURRENCIES: CurrenciesResponse = {
+  fiat: [
+    "EUR",
+    "USD",
+    "GBP",
+    "CHF",
+    "JPY",
+    "CAD",
+    "AUD",
+    "NOK",
+    "SEK",
+    "DKK",
+    "PLN",
+    "CZK",
+    "HUF",
+    "RON",
+  ],
+  crypto: ["BTC", "ETH", "SOL", "USDC", "USDT", "XRP", "BNB", "ADA"],
+};
+
 export function AccountForm({
   open = true,
   account,
@@ -80,9 +106,29 @@ export function AccountForm({
   const [form, setForm] = useState<AccountFormData>(() =>
     initialFormData(account, initialBank),
   );
+  const [currencyGroups, setCurrencyGroups] =
+    useState<CurrenciesResponse>(FALLBACK_CURRENCIES);
   const [errors, setErrors] = useState<
     Partial<Record<keyof AccountFormData, string>>
   >({});
+
+  useEffect(() => {
+    let mounted = true;
+
+    currencies
+      .list()
+      .then((data) => {
+        if (!mounted) return;
+        setCurrencyGroups(data);
+      })
+      .catch(() => {
+        // Keep local fallback list when API is temporarily unavailable.
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function validate(): boolean {
     const newErrors: Partial<Record<keyof AccountFormData, string>> = {};
@@ -179,15 +225,28 @@ export function AccountForm({
 
           <div>
             <label className="mb-1 block text-sm font-medium">Devise</label>
-            <input
-              type="text"
+            <select
               value={form.currency}
               onChange={(e) =>
-                setForm({ ...form, currency: e.target.value.toUpperCase() })
+                setForm({ ...form, currency: e.target.value as CurrencyCode })
               }
               className={`${inputBase} border-border`}
-              maxLength={3}
-            />
+            >
+              <optgroup label="Fiat">
+                {currencyGroups.fiat.map((currencyCode) => (
+                  <option key={currencyCode} value={currencyCode}>
+                    {currencyCode}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Crypto">
+                {currencyGroups.crypto.map((currencyCode) => (
+                  <option key={currencyCode} value={currencyCode}>
+                    {currencyCode}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
           </div>
         </div>
 
