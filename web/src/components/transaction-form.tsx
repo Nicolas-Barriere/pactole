@@ -143,7 +143,7 @@ export function TransactionForm({
             <Label>Compte</Label>
             <Select
               value={form.account_id}
-              onValueChange={(v) => setForm({ ...form, account_id: v })}
+              onValueChange={(v) => setForm({ ...form, account_id: v ?? "" })}
             >
               <SelectTrigger
                 className={errors.account_id ? "border-destructive" : ""}

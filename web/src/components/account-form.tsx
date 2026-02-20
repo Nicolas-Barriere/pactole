@@ -151,7 +151,7 @@ export function AccountForm({
             <Label>Banque</Label>
             <Select
               value={form.bank}
-              onValueChange={(v) => setForm({ ...form, bank: v })}
+              onValueChange={(v) => setForm({ ...form, bank: v ?? "" })}
             >
               <SelectTrigger className={errors.bank ? "border-destructive" : ""}>
                 <SelectValue placeholder="Sélectionner une banque" />
@@ -174,7 +174,7 @@ export function AccountForm({
             <Select
               value={form.type}
               onValueChange={(v) =>
-                setForm({ ...form, type: v as AccountType })
+                setForm({ ...form, type: (v ?? "checking") as AccountType })
               }
             >
               <SelectTrigger>

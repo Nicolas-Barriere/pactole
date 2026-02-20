@@ -259,18 +259,18 @@ export function TransactionsClient({
       id: "select",
       header: ({ table: t }) => (
         <Checkbox
-          checked={
-            t.getIsAllPageRowsSelected() ||
-            (t.getIsSomePageRowsSelected() && "indeterminate")
+          checked={t.getIsAllPageRowsSelected()}
+          indeterminate={
+            !t.getIsAllPageRowsSelected() && t.getIsSomePageRowsSelected()
           }
-          onCheckedChange={(value) => t.toggleAllPageRowsSelected(!!value)}
+          onCheckedChange={(value) => t.toggleAllPageRowsSelected(value)}
           aria-label="Tout sélectionner"
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={(value) => row.toggleSelected(value)}
           aria-label="Sélectionner la ligne"
         />
       ),
@@ -520,7 +520,10 @@ export function TransactionsClient({
             {selectedIds.size > 1 ? "s" : ""}
           </span>
           <div className="flex items-center gap-2 sm:ml-auto">
-            <Select value={bulkTagId} onValueChange={setBulkTagId}>
+            <Select
+              value={bulkTagId}
+              onValueChange={(value) => setBulkTagId(value ?? "")}
+            >
               <SelectTrigger className="h-8 w-44 text-sm">
                 <SelectValue placeholder="Choisir un tag" />
               </SelectTrigger>

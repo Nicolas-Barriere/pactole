@@ -106,7 +106,7 @@ export function RuleForm({
             <Label>Tag</Label>
             <Select
               value={form.tag_id}
-              onValueChange={(v) => setForm({ ...form, tag_id: v })}
+              onValueChange={(v) => setForm({ ...form, tag_id: v ?? "" })}
             >
               <SelectTrigger className={errors.tag_id ? "border-destructive" : ""}>
                 <SelectValue placeholder="Sélectionner un tag" />

@@ -456,7 +456,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
           </label>
           <Select
             value={selectedAccountId}
-            onValueChange={setSelectedAccountId}
+            onValueChange={(value) => setSelectedAccountId(value ?? "")}
           >
             <SelectTrigger id="account-select">
               <SelectValue placeholder="Sélectionnez un compte…" />
