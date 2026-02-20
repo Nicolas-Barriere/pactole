@@ -199,7 +199,9 @@ defmodule MoulaxWeb.ImportControllerTest do
     end
 
     test "returns 422 for unknown CSV format", %{conn: conn} do
-      tmp_path = Path.join(System.tmp_dir!(), "unknown_detect_#{System.unique_integer([:positive])}.csv")
+      tmp_path =
+        Path.join(System.tmp_dir!(), "unknown_detect_#{System.unique_integer([:positive])}.csv")
+
       File.write!(tmp_path, "foo,bar,baz\n1,2,3\n")
 
       upload = %Plug.Upload{
