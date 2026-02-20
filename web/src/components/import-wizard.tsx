@@ -65,6 +65,7 @@ interface ImportWizardProps {
 }
 
 export function ImportWizard({ accounts }: ImportWizardProps) {
+  const wizardTopRef = useRef<HTMLDivElement>(null);
   const [availableAccounts, setAvailableAccounts] = useState<Account[]>(accounts);
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -223,8 +224,27 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   ];
   const currentIndex = STEPS.findIndex((s) => s.key === step);
 
+  function scrollToImportTop() {
+    const main = document.querySelector("main");
+    if (main instanceof HTMLElement) {
+      main.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetToUploadStep() {
+    setFile(null);
+    setImportResult(null);
+    setImportError(null);
+    setDetectedBank(null);
+    setStep("upload");
+    requestAnimationFrame(scrollToImportTop);
+    setTimeout(scrollToImportTop, 60);
+  }
+
   return (
-    <div className="space-y-6">
+    <div ref={wizardTopRef} className="space-y-6">
       {/* Stepper */}
       <div className="flex items-center gap-2">
         {STEPS.map((s, i) => {
@@ -534,21 +554,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
         <ResultsStep
           result={importResult}
           accountId={selectedAccountId}
-          onImportAnother={() => {
-            setFile(null);
-            setImportResult(null);
-            setImportError(null);
-            setDetectedBank(null);
-            setStep("upload");
-          }}
-          onNewAccount={() => {
-            setFile(null);
-            setImportResult(null);
-            setImportError(null);
-            setDetectedBank(null);
-            setSelectedAccountId("");
-            setStep("upload");
-          }}
+          onImportAnother={resetToUploadStep}
         />
       )}
 
@@ -570,12 +576,10 @@ function ResultsStep({
   result,
   accountId,
   onImportAnother,
-  onNewAccount,
 }: {
   result: Import;
   accountId: string;
   onImportAnother: () => void;
-  onNewAccount: () => void;
 }) {
   const isFailed = result.status === "failed";
   const hasErrors =
@@ -664,24 +668,18 @@ function ResultsStep({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {!isFailed && (
           <Link
             href={`/accounts/${accountId}`}
-            className="flex items-center gap-2 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-9 items-center gap-2 bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Voir les transactions
           </Link>
         )}
-        <Button variant="outline" onClick={onImportAnother}>
+        <Button variant="outline" className="h-9" onClick={onImportAnother}>
           Importer un autre fichier
         </Button>
-        <button
-          onClick={onNewAccount}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          Changer de compte
-        </button>
       </div>
     </div>
   );
