@@ -7,16 +7,13 @@ defmodule Moulax.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      MoulaxWeb.Telemetry,
-      Moulax.Repo,
-      {DNSCluster, query: Application.get_env(:moulax, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Moulax.PubSub},
-      # Start a worker by calling: Moulax.Worker.start_link(arg)
-      # {Moulax.Worker, arg},
-      # Start to serve requests, typically the last entry
-      MoulaxWeb.Endpoint
-    ]
+    children =
+      [
+        MoulaxWeb.Telemetry,
+        Moulax.Repo,
+        {DNSCluster, query: Application.get_env(:moulax, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Moulax.PubSub}
+      ] ++ maybe_exchange_rate_fetcher_child() ++ [MoulaxWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -30,5 +27,13 @@ defmodule Moulax.Application do
   def config_change(changed, _new, removed) do
     MoulaxWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp maybe_exchange_rate_fetcher_child do
+    if Application.get_env(:moulax, :exchange_rates_fetcher_enabled, true) do
+      [Moulax.ExchangeRates.Fetcher]
+    else
+      []
+    end
   end
 end

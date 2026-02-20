@@ -11,6 +11,7 @@ defmodule Moulax.Factory do
   alias Moulax.Tags.TransactionTag
   alias Moulax.Transactions.Transaction
   alias Moulax.Imports.Import
+  alias Moulax.ExchangeRates.ExchangeRate
 
   @doc "Inserts an Account with sensible defaults. Accepts atom-keyed attrs."
   def insert_account(attrs \\ %{}) do
@@ -103,6 +104,21 @@ defmodule Moulax.Factory do
     defaults = %{filename: "test.csv", status: "pending"}
     merged = Map.merge(defaults, atomize_keys(attrs))
     %Import{} |> Import.changeset(merged) |> Repo.insert!()
+  end
+
+  @doc """
+  Inserts an ExchangeRate row. Accepts atom-keyed attrs.
+  """
+  def insert_exchange_rate(attrs \\ %{}) do
+    defaults = %{
+      from_currency: "EUR",
+      to_currency: "USD",
+      rate: Decimal.new("1.08"),
+      fetched_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    }
+
+    merged = Map.merge(defaults, atomize_keys(attrs))
+    %ExchangeRate{} |> ExchangeRate.changeset(merged) |> Repo.insert!()
   end
 
   defp atomize_keys(map) when is_map(map) do

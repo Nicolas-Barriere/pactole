@@ -58,6 +58,7 @@ defmodule Moulax.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:cors_plug, "~> 3.0"},
+      {:req, "~> 0.5.17"},
       {:excoveralls, "~> 0.18", only: :test, runtime: false}
     ]
   end

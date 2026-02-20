@@ -26,6 +26,7 @@ defmodule MoulaxWeb.Router do
     post "/tagging-rules/apply", TaggingRuleController, :apply_rules
 
     get "/currencies", CurrencyController, :index
+    get "/exchange-rates", ExchangeRateController, :index
 
     get "/dashboard/summary", DashboardController, :summary
     get "/dashboard/spending", DashboardController, :spending
