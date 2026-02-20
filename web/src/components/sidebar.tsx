@@ -3,22 +3,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useCurrency } from "@/contexts/currency-context";
-import type { CurrencyCode } from "@/types";
+import { useTheme } from "next-themes";
+import {
+  LayoutDashboard,
+  Wallet,
+  List,
+  Tag,
+  Upload,
+  Menu,
+  X,
+  Sun,
+  Moon,
+} from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Tableau de bord", icon: LayoutDashboardIcon },
-  { href: "/accounts", label: "Comptes", icon: WalletIcon },
-  { href: "/transactions", label: "Transactions", icon: ListIcon },
-  { href: "/tags", label: "Tags", icon: TagIcon },
-  { href: "/import", label: "Importer", icon: UploadIcon },
+  { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/accounts", label: "Comptes", icon: Wallet },
+  { href: "/transactions", label: "Transactions", icon: List },
+  { href: "/tags", label: "Tags", icon: Tag },
+  { href: "/import", label: "Importer", icon: Upload },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { baseCurrency, setBaseCurrency, supportedCurrencies, isRatesStale } =
-    useCurrency();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -35,22 +46,14 @@ export function Sidebar() {
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-sidebar px-4 md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
-          className="rounded-lg p-1.5 text-muted hover:bg-card hover:text-foreground"
+          className="p-1.5 text-muted-foreground hover:text-foreground"
           aria-label="Ouvrir le menu"
         >
-          <MenuIcon className="h-5 w-5" />
+          <Menu className="h-5 w-5" />
         </button>
         <span className="text-lg font-bold tracking-tight text-primary">
           Moulax
         </span>
-        <div className="ml-auto">
-          <CurrencySelector
-            value={baseCurrency}
-            options={supportedCurrencies}
-            stale={isRatesStale}
-            onChange={setBaseCurrency}
-          />
-        </div>
       </header>
 
       {/* Mobile overlay */}
@@ -72,18 +75,12 @@ export function Sidebar() {
           <span className="text-xl font-bold tracking-tight text-primary">
             Moulax
           </span>
-          <CurrencySelector
-            value={baseCurrency}
-            options={supportedCurrencies}
-            stale={isRatesStale}
-            onChange={setBaseCurrency}
-          />
           <button
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-1 text-muted hover:text-foreground md:hidden"
+            className="p-1 text-muted-foreground hover:text-foreground md:hidden"
             aria-label="Fermer le menu"
           >
-            <CloseIcon className="h-5 w-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -100,10 +97,10 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary"
-                    : "text-muted hover:bg-card-hover hover:text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -114,106 +111,21 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border px-5 py-3">
-          <p className="text-xs text-muted">Moulax v1</p>
+        <div className="flex items-center justify-between border-t border-border px-5 py-3">
+          <p className="text-xs text-muted-foreground">Moulax v1</p>
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Basculer le thème"
+          >
+            {mounted && (resolvedTheme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            ))}
+          </button>
         </div>
       </aside>
     </>
-  );
-}
-
-/* ── Inline SVG Icons ─────────────────────────────────── */
-
-function MenuIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-    </svg>
-  );
-}
-
-function CloseIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function LayoutDashboardIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
-    </svg>
-  );
-}
-
-function WalletIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1 0-6h.75A2.25 2.25 0 0 1 18 6v.75M3.75 6A2.25 2.25 0 0 1 6 3.75h12A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6Z" />
-    </svg>
-  );
-}
-
-function ListIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-    </svg>
-  );
-}
-
-function TagIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
-    </svg>
-  );
-}
-
-function UploadIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-    </svg>
-  );
-}
-
-function CurrencySelector({
-  value,
-  options,
-  stale,
-  onChange,
-}: {
-  value: CurrencyCode;
-  options: CurrencyCode[];
-  stale: boolean;
-  onChange: (currency: CurrencyCode) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {stale && (
-        <span
-          className="inline-flex h-2 w-2 rounded-full bg-warning"
-          title="Taux potentiellement obsoletes"
-          aria-label="Taux potentiellement obsoletes"
-        />
-      )}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as CurrencyCode)}
-        className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
-        aria-label="Devise de base"
-        title="Devise de base"
-      >
-        {options.map((currency) => (
-          <option key={currency} value={currency}>
-            {currency}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }

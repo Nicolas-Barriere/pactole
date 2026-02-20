@@ -2,6 +2,23 @@
 
 import { useState } from "react";
 import type { TaggingRule, Tag } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface RuleFormData {
   keyword: string;
@@ -55,102 +72,85 @@ export function RuleForm({
     if (validate()) onSubmit(form);
   }
 
-  if (!open) return null;
-
   const isEdit = !!rule;
-  const inputBase =
-    "w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
-        <h2 className="text-lg font-semibold">
-          {isEdit ? "Modifier la règle" : "Nouvelle règle"}
-        </h2>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? "Modifier la règle" : "Nouvelle règle"}
+          </DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Mot-clé</label>
-            <input
-              type="text"
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="rule-keyword">Mot-clé</Label>
+            <Input
+              id="rule-keyword"
               value={form.keyword}
               onChange={(e) => setForm({ ...form, keyword: e.target.value })}
-              className={`${inputBase} ${errors.keyword ? "border-danger" : "border-border"}`}
               placeholder="Ex: CARREFOUR"
+              className={errors.keyword ? "border-destructive" : ""}
             />
-            <p className="mt-1 text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               Le mot-clé sera recherché (sans tenir compte de la casse) dans le
               libellé des transactions.
             </p>
             {errors.keyword && (
-              <p className="mt-1 text-xs text-danger">{errors.keyword}</p>
+              <p className="text-xs text-destructive">{errors.keyword}</p>
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Tag</label>
-            <select
+          <div className="space-y-1.5">
+            <Label>Tag</Label>
+            <Select
               value={form.tag_id}
-              onChange={(e) =>
-                setForm({ ...form, tag_id: e.target.value })
-              }
-              className={`${inputBase} ${errors.tag_id ? "border-danger" : "border-border"}`}
+              onValueChange={(v) => setForm({ ...form, tag_id: v })}
             >
-              <option value="">Sélectionner un tag</option>
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className={errors.tag_id ? "border-destructive" : ""}>
+                <SelectValue placeholder="Sélectionner un tag" />
+              </SelectTrigger>
+              <SelectContent>
+                {tags.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.tag_id && (
-              <p className="mt-1 text-xs text-danger">{errors.tag_id}</p>
+              <p className="text-xs text-destructive">{errors.tag_id}</p>
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Priorité</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="rule-priority">Priorité</Label>
+            <Input
+              id="rule-priority"
               type="number"
               value={form.priority}
               onChange={(e) =>
-                setForm({ ...form, priority: parseInt(e.target.value, 10) })
+                setForm({ ...form, priority: parseInt(e.target.value, 10) || 0 })
               }
-              className={`${inputBase} border-border`}
               placeholder="0"
             />
-            <p className="mt-1 text-xs text-muted">
-              Une priorité plus élevée (ex: 10) sera appliquée avant une priorité plus basse (ex: 0).
+            <p className="text-xs text-muted-foreground">
+              Une priorité plus élevée (ex: 10) sera appliquée avant une priorité
+              plus basse (ex: 0).
             </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
-            >
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
-            >
-              {loading
-                ? "Enregistrement..."
-                : isEdit
-                  ? "Enregistrer"
-                  : "Créer"}
-            </button>
-          </div>
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Enregistrement..." : isEdit ? "Enregistrer" : "Créer"}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

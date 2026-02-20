@@ -47,6 +47,7 @@ services:
       - "${WEB_PORT:-3005}:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-4001}/api/v1
+      API_URL: http://backend:4000/api/v1
       NEXT_TELEMETRY_DISABLED: 1
       HOSTNAME: 0.0.0.0
     volumes:

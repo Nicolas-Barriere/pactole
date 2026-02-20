@@ -2,6 +2,23 @@
 
 import { useState } from "react";
 import type { Account, Tag } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface TransactionFormData {
   date: string;
@@ -68,91 +85,89 @@ export function TransactionForm({
     }));
   }
 
-  if (!open) return null;
-
-  const inputBase =
-    "w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary";
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
-        <h2 className="text-lg font-semibold">Nouvelle transaction</h2>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Nouvelle transaction</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Date</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="tx-date">Date</Label>
+              <Input
+                id="tx-date"
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className={`${inputBase} ${errors.date ? "border-danger" : "border-border"}`}
+                className={errors.date ? "border-destructive" : ""}
               />
               {errors.date && (
-                <p className="mt-1 text-xs text-danger">{errors.date}</p>
+                <p className="text-xs text-destructive">{errors.date}</p>
               )}
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium">Montant</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="tx-amount">Montant</Label>
+              <Input
+                id="tx-amount"
                 type="number"
                 step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 placeholder="-42.50"
-                className={`${inputBase} ${errors.amount ? "border-danger" : "border-border"}`}
+                className={errors.amount ? "border-destructive" : ""}
               />
               {errors.amount && (
-                <p className="mt-1 text-xs text-danger">{errors.amount}</p>
+                <p className="text-xs text-destructive">{errors.amount}</p>
               )}
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Libellé</label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-label">Libellé</Label>
+            <Input
+              id="tx-label"
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
               placeholder="Ex: Courses Carrefour"
-              className={`${inputBase} ${errors.label ? "border-danger" : "border-border"}`}
+              className={errors.label ? "border-destructive" : ""}
             />
             {errors.label && (
-              <p className="mt-1 text-xs text-danger">{errors.label}</p>
+              <p className="text-xs text-destructive">{errors.label}</p>
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Compte</label>
-            <select
+          <div className="space-y-1.5">
+            <Label>Compte</Label>
+            <Select
               value={form.account_id}
-              onChange={(e) =>
-                setForm({ ...form, account_id: e.target.value })
-              }
-              className={`${inputBase} ${errors.account_id ? "border-danger" : "border-border"}`}
+              onValueChange={(v) => setForm({ ...form, account_id: v })}
             >
-              <option value="">Sélectionner un compte</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                className={errors.account_id ? "border-destructive" : ""}
+              >
+                <SelectValue placeholder="Sélectionner un compte" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.account_id && (
-              <p className="mt-1 text-xs text-danger">{errors.account_id}</p>
+              <p className="text-xs text-destructive">{errors.account_id}</p>
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">
+          <div className="space-y-1.5">
+            <Label>
               Tags{" "}
-              <span className="font-normal text-muted">(optionnel)</span>
-            </label>
+              <span className="font-normal text-muted-foreground">(optionnel)</span>
+            </Label>
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => {
                 const selected = form.tag_ids.includes(t.id);
@@ -161,10 +176,10 @@ export function TransactionForm({
                     key={t.id}
                     type="button"
                     onClick={() => toggleTag(t.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1.5 border px-3 py-1 text-xs font-medium transition-colors ${
                       selected
                         ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted hover:border-primary/30 hover:text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
                     }`}
                   >
                     <span
@@ -176,30 +191,28 @@ export function TransactionForm({
                 );
               })}
               {tags.length === 0 && (
-                <span className="text-xs text-muted">Aucun tag disponible</span>
+                <span className="text-xs text-muted-foreground">
+                  Aucun tag disponible
+                </span>
               )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
+          <DialogFooter className="pt-2">
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
             >
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading ? "Enregistrement..." : "Ajouter"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -4,14 +4,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
-import { useToast } from "@/components/toast";
+import { toast } from "sonner";
 import { AccountForm, type AccountFormData } from "@/components/account-form";
 
 function NewAccountContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const toast = useToast();
-
     const [loading, setLoading] = useState(false);
     const initialBank = searchParams.get("bank") || undefined;
 
