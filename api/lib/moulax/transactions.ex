@@ -5,6 +5,7 @@ defmodule Moulax.Transactions do
   import Ecto.Query
 
   alias Moulax.Repo
+  alias Moulax.Imports.Import
   alias Moulax.Transactions.Transaction
   alias Moulax.Accounts.Account
   alias Moulax.Tags.Tag
@@ -38,7 +39,7 @@ defmodule Moulax.Transactions do
 
     base =
       Transaction
-      |> preload([:account, :tags])
+      |> preload([:account, :tags, :import])
       |> apply_filter_account(opts)
       |> apply_filter_tag(opts)
       |> apply_filter_date_from(opts)
@@ -159,7 +160,7 @@ defmodule Moulax.Transactions do
   Fetches a single transaction by ID. Returns `{:ok, transaction_map}` or `{:error, :not_found}`.
   """
   def get_transaction(id) do
-    case Repo.get(Transaction, id) |> Repo.preload([:account, :tags]) do
+    case Repo.get(Transaction, id) |> Repo.preload([:account, :tags, :import]) do
       nil -> {:error, :not_found}
       tx -> {:ok, transaction_to_response(tx)}
     end
@@ -184,7 +185,7 @@ defmodule Moulax.Transactions do
     |> Transaction.changeset(attrs)
     |> Repo.insert()
     |> case do
-      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags]))}
+      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags, :import]))}
       error -> error
     end
   end
@@ -197,7 +198,7 @@ defmodule Moulax.Transactions do
     |> Transaction.changeset(attrs)
     |> Repo.update()
     |> case do
-      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags]))}
+      {:ok, tx} -> {:ok, transaction_to_response(Repo.preload(tx, [:account, :tags, :import]))}
       error -> error
     end
   end
@@ -297,6 +298,8 @@ defmodule Moulax.Transactions do
       id: tx.id,
       account_id: tx.account_id,
       account: account_ref(tx.account),
+      import_id: tx.import_id,
+      import: import_ref(tx.import),
       date: Date.to_iso8601(tx.date),
       label: tx.label,
       original_label: tx.original_label,
@@ -310,6 +313,10 @@ defmodule Moulax.Transactions do
 
   defp account_ref(nil), do: nil
   defp account_ref(%Account{} = a), do: %{id: a.id, name: a.name, bank: a.bank, type: a.type}
+
+  defp import_ref(nil), do: nil
+  defp import_ref(%Ecto.Association.NotLoaded{}), do: nil
+  defp import_ref(%Import{} = import), do: %{id: import.id, filename: import.filename}
 
   defp tag_ref(%Tag{} = t), do: %{id: t.id, name: t.name, color: t.color}
 

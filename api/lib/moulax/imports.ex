@@ -71,7 +71,7 @@ defmodule Moulax.Imports do
     with {:ok, parser} <- detect_parser(csv_content),
          {:ok, rows} <- parse_csv(parser, csv_content) do
       {imported, skipped, errored, error_details, row_details} =
-        process_rows(import_record.account_id, rows)
+        process_rows(import_record.account_id, import_record.id, rows)
 
       total = imported + skipped + errored
 
@@ -112,7 +112,7 @@ defmodule Moulax.Imports do
     parser.parse(csv_content)
   end
 
-  defp process_rows(account_id, rows) do
+  defp process_rows(account_id, import_id, rows) do
     tag_names = load_tag_names()
 
     {imported, skipped, errored, errors_rev, details_rev} =
@@ -124,6 +124,7 @@ defmodule Moulax.Imports do
 
         attrs = %{
           account_id: account_id,
+          import_id: import_id,
           date: row.date,
           label: row.label,
           original_label: row.original_label,

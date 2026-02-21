@@ -38,6 +38,7 @@ defmodule Moulax.ImportsTest do
       txs = Repo.all(from t in Transaction, where: t.account_id == ^account.id)
       assert length(txs) == 4
       assert Enum.all?(txs, &(&1.source == "csv_import"))
+      assert Enum.all?(txs, &(&1.import_id == import_record.id))
     end
 
     test "applies tagging rules during import — all matching rules apply", %{account: account} do

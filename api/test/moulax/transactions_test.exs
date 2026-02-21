@@ -381,6 +381,25 @@ defmodule Moulax.TransactionsTest do
     test "returns not_found when id does not exist" do
       assert {:error, :not_found} = Transactions.get_transaction(Ecto.UUID.generate())
     end
+
+    test "includes import reference when transaction comes from CSV import" do
+      account = insert_account()
+      import_record = insert_import(%{account_id: account.id, filename: "statement.csv"})
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Imported",
+          amount: Decimal.new("-10"),
+          source: "csv_import",
+          import_id: import_record.id
+        })
+
+      assert {:ok, got} = Transactions.get_transaction(tx.id)
+      assert got.import_id == import_record.id
+      assert got.import == %{id: import_record.id, filename: "statement.csv"}
+    end
   end
 
   describe "create_transaction/1" do

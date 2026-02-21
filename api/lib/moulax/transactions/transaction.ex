@@ -8,6 +8,7 @@ defmodule Moulax.Transactions.Transaction do
 
   alias Moulax.Accounts.Account
   alias Moulax.Currencies
+  alias Moulax.Imports.Import
   alias Moulax.Tags.Tag
 
   @type t :: %__MODULE__{
@@ -20,6 +21,7 @@ defmodule Moulax.Transactions.Transaction do
           currency: String.t(),
           bank_reference: String.t() | nil,
           source: String.t(),
+          import_id: Ecto.UUID.t() | nil,
           inserted_at: DateTime.t(),
           updated_at: DateTime.t()
         }
@@ -36,13 +38,14 @@ defmodule Moulax.Transactions.Transaction do
     field :source, :string
 
     belongs_to :account, Account
+    belongs_to :import, Import
     many_to_many :tags, Tag, join_through: "transaction_tags"
 
     timestamps()
   end
 
   @required_fields [:account_id, :date, :label, :original_label, :amount, :source]
-  @optional_fields [:currency, :bank_reference]
+  @optional_fields [:currency, :bank_reference, :import_id]
 
   @doc false
   def changeset(transaction, attrs) do
@@ -51,6 +54,7 @@ defmodule Moulax.Transactions.Transaction do
     |> validate_required(@required_fields)
     |> validate_inclusion(:source, ["csv_import", "manual"])
     |> foreign_key_constraint(:account_id)
+    |> foreign_key_constraint(:import_id)
     |> unique_constraint([:account_id, :date, :amount, :original_label],
       name: :transactions_account_date_amount_original_label_index
     )

@@ -101,6 +101,25 @@ defmodule MoulaxWeb.TransactionControllerTest do
       conn = get(conn, ~p"/api/v1/transactions/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
+
+    test "returns import reference when present", %{conn: conn, account: account} do
+      import_record = insert_import(%{account_id: account.id, filename: "statement.csv"})
+
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-15],
+          label: "Imported transaction",
+          amount: Decimal.new("-42.50"),
+          source: "csv_import",
+          import_id: import_record.id
+        })
+
+      conn = get(conn, ~p"/api/v1/transactions/#{tx.id}")
+      data = json_response(conn, 200)
+      assert data["import_id"] == import_record.id
+      assert data["import"] == %{"id" => import_record.id, "filename" => "statement.csv"}
+    end
   end
 
   describe "create POST /api/v1/accounts/:account_id/transactions" do
