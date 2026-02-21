@@ -4,7 +4,7 @@ defmodule Moulax.DashboardTest do
   alias Moulax.Dashboard
 
   describe "summary/0" do
-    test "returns net worth and account data" do
+    test "returns per-account balances and currencies" do
       a1 =
         insert_account(%{
           name: "Checking",
@@ -21,9 +21,10 @@ defmodule Moulax.DashboardTest do
       })
 
       result = Dashboard.summary()
-      assert result.net_worth == "2600.00"
-      assert result.currency == "EUR"
       assert length(result.accounts) == 1
+      account = hd(result.accounts)
+      assert account.balance == "2600.00"
+      assert account.currency == "EUR"
     end
   end
 

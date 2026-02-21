@@ -6,7 +6,7 @@ defmodule MoulaxWeb.DashboardControllerTest do
   # ---------------------------------------------------------------------------
 
   describe "GET /api/v1/dashboard/summary" do
-    test "returns net worth and per-account balances", %{conn: conn} do
+    test "returns per-account balances and metadata", %{conn: conn} do
       a1 =
         insert_account(%{
           name: "Checking",
@@ -51,19 +51,19 @@ defmodule MoulaxWeb.DashboardControllerTest do
         |> get(~p"/api/v1/dashboard/summary")
         |> json_response(200)
 
-      assert data["currency"] == "EUR"
-      assert Decimal.equal?(Decimal.new(data["net_worth"]), Decimal.new("3950.00"))
       assert length(data["accounts"]) == 2
 
       checking = Enum.find(data["accounts"], &(&1["name"] == "Checking"))
       savings = Enum.find(data["accounts"], &(&1["name"] == "Savings"))
 
       assert Decimal.equal?(Decimal.new(checking["balance"]), Decimal.new("2450.00"))
+      assert checking["currency"] == "EUR"
       assert checking["bank"] == "boursorama"
       assert checking["type"] == "checking"
       assert checking["last_import_at"] != nil
 
       assert Decimal.equal?(Decimal.new(savings["balance"]), Decimal.new("1500.00"))
+      assert savings["currency"] == "EUR"
       assert savings["last_import_at"] == nil
     end
 
@@ -93,7 +93,6 @@ defmodule MoulaxWeb.DashboardControllerTest do
         |> get(~p"/api/v1/dashboard/summary")
         |> json_response(200)
 
-      assert Decimal.equal?(Decimal.new(data["net_worth"]), Decimal.new("0"))
       assert data["accounts"] == []
     end
   end

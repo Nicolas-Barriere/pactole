@@ -18,8 +18,7 @@ defmodule Moulax.Dashboard do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Returns net worth (sum of all non-archived account balances) and per-account
-  balance / last-import metadata.
+  Returns per-account balance / currency and last-import metadata.
   """
   def summary do
     accounts =
@@ -59,20 +58,12 @@ defmodule Moulax.Dashboard do
           bank: account.bank,
           type: account.type,
           balance: format_decimal(balance),
+          currency: account.currency,
           last_import_at: format_datetime(last_import)
         }
       end)
 
-    net_worth =
-      Enum.reduce(account_data, Decimal.new(0), fn a, acc ->
-        Decimal.add(acc, Decimal.new(a.balance))
-      end)
-
-    %{
-      net_worth: format_decimal(net_worth),
-      currency: "EUR",
-      accounts: account_data
-    }
+    %{accounts: account_data}
   end
 
   # ---------------------------------------------------------------------------

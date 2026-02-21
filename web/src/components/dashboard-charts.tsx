@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/contexts/currency-context";
+import { convertAmountValue } from "@/hooks/use-converted-amount";
+import type { CurrencyDisplayMode } from "@/components/currency-display-toggle";
 import {
   ChartContainer,
   ChartLegend,
@@ -137,6 +140,8 @@ interface DashboardChartsProps {
   spending: DashboardSpending | null;
   trends: DashboardTrends | null;
   topExpenses: DashboardTopExpenses | null;
+  displayMode: CurrencyDisplayMode;
+  assumedCurrency: string;
 }
 
 type DashboardTooltipProps = TooltipContentProps<
@@ -149,6 +154,8 @@ export function DashboardCharts({
   spending,
   trends,
   topExpenses,
+  displayMode,
+  assumedCurrency,
 }: DashboardChartsProps) {
   const router = useRouter();
   const isCurrentMonth = month === currentMonthStr();
@@ -188,12 +195,25 @@ export function DashboardCharts({
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <SpendingBreakdown spending={spending} month={month} />
-        <TrendsChart trends={trends} />
+        <SpendingBreakdown
+          spending={spending}
+          month={month}
+          displayMode={displayMode}
+          assumedCurrency={assumedCurrency}
+        />
+        <TrendsChart
+          trends={trends}
+          displayMode={displayMode}
+          assumedCurrency={assumedCurrency}
+        />
       </div>
 
       {/* Top Expenses */}
-      <TopExpensesList topExpenses={topExpenses} />
+      <TopExpensesList
+        topExpenses={topExpenses}
+        displayMode={displayMode}
+        assumedCurrency={assumedCurrency}
+      />
     </div>
   );
 }
@@ -203,11 +223,16 @@ export function DashboardCharts({
 function SpendingBreakdown({
   spending,
   month,
+  displayMode,
+  assumedCurrency,
 }: {
   spending: DashboardSpending | null;
   month: string;
+  displayMode: CurrencyDisplayMode;
+  assumedCurrency: string;
 }) {
   const router = useRouter();
+  const { baseCurrency, rates } = useCurrency();
 
   if (!spending) {
     return (
@@ -219,12 +244,32 @@ function SpendingBreakdown({
     );
   }
 
-  const data = spending.by_tag.map((t, index) => ({
-    name: t.tag,
-    value: Math.abs(parseFloat(t.amount)),
-    color: resolveTagColor(t.tag, t.color, index),
-    percentage: t.percentage,
-  }));
+  const convertForChart = (value: number): number => {
+    if (displayMode !== "base") return value;
+    const converted = convertAmountValue(
+      String(value),
+      assumedCurrency,
+      baseCurrency,
+      rates,
+    );
+    return converted ?? value;
+  };
+
+  const formatForDisplay = (value: number): string => {
+    const numeric = displayMode === "base" ? convertForChart(value) : value;
+    const currency = displayMode === "base" ? baseCurrency : assumedCurrency;
+    return formatAmount(String(numeric), currency);
+  };
+
+  const data = spending.by_tag.map((t, index) => {
+    const rawValue = Math.abs(parseFloat(t.amount));
+    return {
+      name: t.tag,
+      value: convertForChart(rawValue),
+      color: resolveTagColor(t.tag, t.color, index),
+      percentage: t.percentage,
+    };
+  });
 
   const hasData = data.length > 0;
 
@@ -236,8 +281,11 @@ function SpendingBreakdown({
       <p className="mb-4 text-xs text-muted-foreground">
         Total :{" "}
         <span className="font-medium text-danger">
-          {formatAmount(spending.total_expenses)}
+          {formatForDisplay(Math.abs(parseFloat(spending.total_expenses)))}
         </span>
+      </p>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Hypothèse mono-devise pour ces agrégats.
       </p>
 
       {!hasData ? (
@@ -286,7 +334,7 @@ function SpendingBreakdown({
                     return {
                       ...entry,
                       name: "Montant",
-                      value: `${formatAmount(String(-amount))} (${percentage}%)`,
+                      value: `${formatForDisplay(amount)} (${percentage}%)`,
                     };
                   });
                   const label = (
@@ -317,7 +365,7 @@ function SpendingBreakdown({
                 />
                 <span className="flex-1 truncate">{entry.name}</span>
                 <span className="font-medium tabular-nums">
-                  {formatAmount(String(-entry.value))}
+                  {formatForDisplay(entry.value)}
                 </span>
                 <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">
                   {entry.percentage}%
@@ -333,7 +381,16 @@ function SpendingBreakdown({
 
 /* ── Trends Chart (Bar Chart) ────────────────────────── */
 
-function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
+function TrendsChart({
+  trends,
+  displayMode,
+  assumedCurrency,
+}: {
+  trends: DashboardTrends | null;
+  displayMode: CurrencyDisplayMode;
+  assumedCurrency: string;
+}) {
+  const { baseCurrency, rates } = useCurrency();
   if (!trends) {
     return (
       <div className="border border-border bg-card p-6">
@@ -344,12 +401,29 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
     );
   }
 
+  const convertForChart = (value: number): number => {
+    if (displayMode !== "base") return value;
+    const converted = convertAmountValue(
+      String(value),
+      assumedCurrency,
+      baseCurrency,
+      rates,
+    );
+    return converted ?? value;
+  };
+
+  const formatForDisplay = (value: number): string => {
+    const numeric = displayMode === "base" ? convertForChart(value) : value;
+    const currency = displayMode === "base" ? baseCurrency : assumedCurrency;
+    return formatAmount(String(numeric), currency);
+  };
+
   const data = [...trends.months]
     .reverse()
     .map((m) => ({
       month: formatShortMonth(m.month),
-      income: parseFloat(m.income),
-      expense: Math.abs(parseFloat(m.expenses)),
+      income: convertForChart(parseFloat(m.income)),
+      expense: convertForChart(Math.abs(parseFloat(m.expenses))),
     }));
 
   const hasData = data.some((d) => d.income > 0 || d.expense > 0);
@@ -359,6 +433,9 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
       <h3 className="mb-4 text-sm font-semibold text-muted-foreground">
         Revenus vs Dépenses
       </h3>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Hypothèse mono-devise pour ces agrégats.
+      </p>
 
       {!hasData ? (
         <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
@@ -394,7 +471,7 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
               content={(props: DashboardTooltipProps) => {
                 const payload = (props.payload ?? []).map((entry) => ({
                   ...entry,
-                  value: formatAmount(String(toNumber(entry.value))),
+                  value: formatForDisplay(toNumber(entry.value)),
                 }));
                 return (
                   <ChartTooltipContent
@@ -431,16 +508,35 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
 
 function TopExpensesList({
   topExpenses,
+  displayMode,
+  assumedCurrency,
 }: {
   topExpenses: DashboardTopExpenses | null;
+  displayMode: CurrencyDisplayMode;
+  assumedCurrency: string;
 }) {
+  const { baseCurrency, rates } = useCurrency();
   if (!topExpenses) return null;
 
   const { expenses } = topExpenses;
+  const formatForDisplay = (value: string): string => {
+    const parsed = Math.abs(parseFloat(value));
+    if (displayMode !== "base") return formatAmount(String(parsed), assumedCurrency);
+    const converted = convertAmountValue(
+      String(parsed),
+      assumedCurrency,
+      baseCurrency,
+      rates,
+    );
+    return formatAmount(String(converted ?? parsed), baseCurrency);
+  };
 
   return (
     <section>
       <h2 className="mb-4 text-lg font-semibold">Top 5 dépenses</h2>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Hypothèse mono-devise pour ces agrégats.
+      </p>
       {expenses.length === 0 ? (
         <div className="border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
           Aucune dépense ce mois
@@ -486,7 +582,7 @@ function TopExpensesList({
                     {expense.account}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-danger tabular-nums">
-                    {formatAmount(expense.amount)}
+                    {formatForDisplay(expense.amount)}
                   </TableCell>
                 </TableRow>
               ))}

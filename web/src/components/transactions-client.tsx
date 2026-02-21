@@ -57,6 +57,10 @@ import {
   createTransaction,
 } from "@/app/actions/transactions";
 import { TransactionAmount } from "@/components/transaction-amount";
+import {
+  CurrencyDisplayToggle,
+  type CurrencyDisplayMode,
+} from "@/components/currency-display-toggle";
 import type { Transaction, Account, Tag, PaginatedResponse } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -131,6 +135,7 @@ export function TransactionsClient({
   const [addOpen, setAddOpen] = useState(false);
   const [bulkTagId, setBulkTagId] = useState("");
   const [bulkPending, startBulkTransition] = useTransition();
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
   const selectedBulkTagLabel = bulkTagId
     ? bulkTagId === "untagged"
       ? "Aucun tag"
@@ -359,9 +364,7 @@ export function TransactionsClient({
       ),
       cell: ({ row }) => {
         const tx = row.original;
-        return (
-          <TransactionAmount amount={tx.amount} currency={tx.currency} />
-        );
+        return <TransactionAmount amount={tx.amount} currency={tx.currency} mode={displayMode} />;
       },
     },
     {
@@ -421,10 +424,13 @@ export function TransactionsClient({
             Toutes vos transactions, tous comptes confondus
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Ajouter une transaction
-        </Button>
+        <div className="flex items-center gap-2">
+          <CurrencyDisplayToggle mode={displayMode} onModeChange={setDisplayMode} />
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Ajouter une transaction
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

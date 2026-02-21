@@ -10,6 +10,9 @@ import { AccountForm, type AccountFormData } from "@/components/account-form";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { updateAccount, archiveAccount } from "@/app/actions/accounts";
 import { formatAmount } from "@/lib/format";
+import { useCurrency } from "@/contexts/currency-context";
+import { convertAmount } from "@/hooks/use-converted-amount";
+import type { CurrencyDisplayMode } from "@/components/currency-display-toggle";
 import type { Account } from "@/types";
 
 interface AccountActionsProps {
@@ -95,10 +98,15 @@ export function AccountActions({ account }: AccountActionsProps) {
 
 interface BalanceEditorProps {
   account: Account;
+  displayMode?: CurrencyDisplayMode;
 }
 
-export function BalanceEditor({ account }: BalanceEditorProps) {
+export function BalanceEditor({
+  account,
+  displayMode = "base",
+}: BalanceEditorProps) {
   const router = useRouter();
+  const { baseCurrency, rates } = useCurrency();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(account.initial_balance);
   const [isPending, startTransition] = useTransition();
@@ -163,7 +171,9 @@ export function BalanceEditor({ account }: BalanceEditorProps) {
       className="inline-flex items-center gap-1 px-1 py-0.5 text-foreground transition-colors hover:bg-accent"
       title="Modifier le solde initial"
     >
-      {formatAmount(account.initial_balance, account.currency)}
+      {displayMode === "base"
+        ? convertAmount(account.initial_balance, account.currency, baseCurrency, rates)
+        : formatAmount(account.initial_balance, account.currency)}
       <Pencil className="h-3 w-3 text-muted-foreground" />
     </button>
   );

@@ -144,14 +144,13 @@ export interface Import {
 /* ── Dashboard ───────────────────────────────────────── */
 
 export interface DashboardSummary {
-  net_worth: string;
-  currency: string;
   accounts: {
     id: string;
     name: string;
     bank: string;
     type: AccountType;
     balance: string;
+    currency: CurrencyCode;
     last_import_at: string | null;
   }[];
 }
