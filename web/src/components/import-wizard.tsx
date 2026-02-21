@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { BANK_LABELS } from "@/lib/account-metadata";
+import { formatAmount } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { AccountForm, type AccountFormData } from "@/components/account-form";
 import {
@@ -41,14 +42,6 @@ function formatShortDate(iso: string): string {
     month: "2-digit",
     year: "numeric",
   });
-}
-
-function formatAmount(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 /* ── Types ───────────────────────────────────────────── */
@@ -797,7 +790,7 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
                     }`}
                   >
                     {isNeg ? "" : "+"}
-                    {formatAmount(amount)}
+                    {formatAmount(String(amount))}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {row.tags ?? "—"}

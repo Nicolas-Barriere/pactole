@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
 import { DashboardCharts } from "@/components/dashboard-charts";
+import { ConvertedAmount } from "@/components/converted-amount";
 import { BANK_LABELS } from "@/lib/account-metadata";
 import type {
   DashboardSummary,
@@ -9,15 +10,6 @@ import type {
   DashboardTopExpenses,
   AccountType,
 } from "@/types";
-
-/* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -106,7 +98,10 @@ export default async function DashboardPage({
         <p className="text-sm font-medium text-muted-foreground">Patrimoine net</p>
         <div className="mt-1 flex items-baseline gap-3">
           <p className="text-3xl font-bold tracking-tight">
-            {formatAmount(summary.net_worth, summary.currency)}
+            <ConvertedAmount
+              amount={summary.net_worth}
+              fromCurrency={summary.currency}
+            />
           </p>
           {changeVsLastMonth !== null && (
             <span
@@ -115,7 +110,10 @@ export default async function DashboardPage({
               }`}
             >
               {changeVsLastMonth >= 0 ? "+" : ""}
-              {formatAmount(String(changeVsLastMonth), summary.currency)}{" "}
+              <ConvertedAmount
+                amount={String(changeVsLastMonth)}
+                fromCurrency={summary.currency}
+              />{" "}
               <span className="text-muted-foreground">le mois dernier</span>
             </span>
           )}
@@ -147,7 +145,10 @@ export default async function DashboardPage({
                   </div>
                 </div>
                 <p className="mt-3 text-lg font-bold tracking-tight">
-                  {formatAmount(account.balance)}
+                  <ConvertedAmount
+                    amount={account.balance}
+                    fromCurrency={summary.currency}
+                  />
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">

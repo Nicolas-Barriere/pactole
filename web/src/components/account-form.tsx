@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Account, AccountType } from "@/types";
+import { CURRENCIES, type Account, type AccountType, type CurrencyCode } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,7 @@ export interface AccountFormData {
   bank: string;
   type: AccountType;
   initial_balance: string;
-  currency: string;
+  currency: CurrencyCode;
 }
 
 interface AccountFormProps {
@@ -69,7 +69,7 @@ function initialFormData(account?: Account | null, initialBank?: string): Accoun
       bank: account.bank,
       type: account.type,
       initial_balance: account.initial_balance,
-      currency: account.currency,
+      currency: CURRENCIES.includes(account.currency) ? account.currency : "EUR",
     };
   }
   return { name: "", bank: initialBank || "", type: "checking", initial_balance: "0", currency: "EUR" };
@@ -192,14 +192,26 @@ export function AccountForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="acc-currency">Devise</Label>
-              <Input
-                id="acc-currency"
+              <Select
                 value={form.currency}
-                onChange={(e) =>
-                  setForm({ ...form, currency: e.target.value.toUpperCase() })
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    currency: (v && CURRENCIES.includes(v as CurrencyCode) ? v : "EUR") as CurrencyCode,
+                  })
                 }
-                maxLength={3}
-              />
+              >
+                <SelectTrigger id="acc-currency">
+                  <SelectValue>{form.currency}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
 import { AccountsClient } from "@/components/accounts-client";
+import { ConvertedAmount } from "@/components/converted-amount";
 import { Badge } from "@/components/ui/badge";
 import {
   BANK_LABELS,
@@ -10,15 +11,6 @@ import {
 } from "@/lib/account-metadata";
 import { cn } from "@/lib/utils";
 import type { Account } from "@/types";
-
-/* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -108,7 +100,7 @@ function AccountCard({ account }: { account: Account }) {
           balance >= 0 ? "text-foreground" : "text-danger"
         }`}
       >
-        {formatAmount(account.balance, account.currency)}
+        <ConvertedAmount amount={account.balance} fromCurrency={account.currency} />
       </p>
 
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">

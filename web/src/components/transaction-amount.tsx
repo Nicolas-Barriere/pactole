@@ -1,16 +1,12 @@
+"use client";
+
 import { cn } from "@/lib/utils";
+import { useConvertedAmount } from "@/hooks/use-converted-amount";
 
 interface TransactionAmountProps {
   amount: string;
   currency?: string;
   className?: string;
-}
-
-function formatAmount(amount: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(amount);
 }
 
 export function TransactionAmount({
@@ -19,6 +15,7 @@ export function TransactionAmount({
   className,
 }: TransactionAmountProps) {
   const numericAmount = parseFloat(amount);
+  const displayAmount = useConvertedAmount(amount, currency);
   const amountColorClass =
     numericAmount > 0
       ? "text-emerald-600 dark:text-emerald-400"
@@ -35,7 +32,7 @@ export function TransactionAmount({
       )}
     >
       {numericAmount > 0 ? "+" : ""}
-      {formatAmount(numericAmount, currency)}
+      {displayAmount}
     </div>
   );
 }

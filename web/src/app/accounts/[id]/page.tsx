@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { serverApi } from "@/lib/server-api";
 import { AccountActions, BalanceEditor } from "@/components/account-detail-client";
+import { ConvertedAmount } from "@/components/converted-amount";
 import { TransactionAmount } from "@/components/transaction-amount";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Upload } from "lucide-react";
@@ -13,15 +14,6 @@ import {
 } from "@/lib/account-metadata";
 import { cn } from "@/lib/utils";
 import type { Account, Transaction, Import, PaginatedResponse } from "@/types";
-
-/* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -121,7 +113,10 @@ export default async function AccountDetailPage({
                 balance >= 0 ? "text-foreground" : "text-danger"
               }`}
             >
-              {formatAmount(account.balance, account.currency)}
+              <ConvertedAmount
+                amount={account.balance}
+                fromCurrency={account.currency}
+              />
             </p>
           </div>
 

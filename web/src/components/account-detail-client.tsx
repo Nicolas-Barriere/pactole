@@ -9,14 +9,8 @@ import { Input } from "@/components/ui/input";
 import { AccountForm, type AccountFormData } from "@/components/account-form";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { updateAccount, archiveAccount } from "@/app/actions/accounts";
+import { formatAmount } from "@/lib/format";
 import type { Account } from "@/types";
-
-function formatAmount(amount: string, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(parseFloat(amount));
-}
 
 interface AccountActionsProps {
   account: Account;

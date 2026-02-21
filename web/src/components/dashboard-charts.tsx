@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatAmount } from "@/lib/format";
 import type {
   DashboardSpending,
   DashboardTrends,
@@ -37,13 +38,6 @@ import type {
 } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────── */
-
-function formatAmount(amount: string | number, currency = "EUR"): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-  }).format(typeof amount === "string" ? parseFloat(amount) : amount);
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -400,7 +394,7 @@ function TrendsChart({ trends }: { trends: DashboardTrends | null }) {
               content={(props: DashboardTooltipProps) => {
                 const payload = (props.payload ?? []).map((entry) => ({
                   ...entry,
-                  value: formatAmount(toNumber(entry.value)),
+                  value: formatAmount(String(toNumber(entry.value))),
                 }));
                 return (
                   <ChartTooltipContent
