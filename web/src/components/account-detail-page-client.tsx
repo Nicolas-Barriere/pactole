@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AccountActions, BalanceEditor } from "@/components/account-detail-client";
 import { ConvertedAmount } from "@/components/converted-amount";
 import { TransactionAmount } from "@/components/transaction-amount";
@@ -29,6 +30,16 @@ function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+function formatDateTime(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 const IMPORT_STATUS_LABELS: Record<string, string> = {
   completed: "Termine",
   processing: "En cours",
@@ -50,13 +61,16 @@ interface AccountDetailPageClientProps {
   account: Account;
   transactions: Transaction[];
   imports: Import[];
+  importsError?: boolean;
 }
 
 export function AccountDetailPageClient({
   account,
   transactions,
   imports,
+  importsError = false,
 }: AccountDetailPageClientProps) {
+  const router = useRouter();
   const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
   const balance = parseFloat(account.balance);
 
@@ -200,7 +214,7 @@ export function AccountDetailPageClient({
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Imports</h2>
+          <h2 className="text-lg font-semibold">Historique des imports CSV</h2>
           <Link
             href={`/import?account=${account.id}`}
             className="flex items-center gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -210,7 +224,17 @@ export function AccountDetailPageClient({
           </Link>
         </div>
 
-        {imports.length === 0 ? (
+        {importsError ? (
+          <div className="border border-dashed border-destructive/40 bg-card p-8 text-center text-sm text-muted-foreground">
+            Impossible de charger l&apos;historique des imports.
+            <button
+              onClick={() => router.refresh()}
+              className="ml-2 font-medium text-primary hover:text-primary/80"
+            >
+              Reessayer
+            </button>
+          </div>
+        ) : imports.length === 0 ? (
           <div className="border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
             Aucun import pour ce compte.
           </div>
@@ -219,45 +243,45 @@ export function AccountDetailPageClient({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Date/heure</th>
                   <th className="px-4 py-3 font-medium">Fichier</th>
-                  <th className="px-4 py-3 font-medium">Lignes</th>
+                  <th className="px-4 py-3 font-medium">Resultats</th>
                   <th className="px-4 py-3 font-medium">Statut</th>
                 </tr>
               </thead>
               <tbody>
-                {imports.map((imp) => (
-                  <tr
-                    key={imp.id}
-                    className="border-b border-border last:border-0 hover:bg-accent"
-                  >
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                      {formatDate(imp.inserted_at)}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">{imp.filename}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <span className="text-foreground">{imp.rows_imported}</span>
-                      {" importees"}
-                      {imp.rows_skipped > 0 && (
-                        <span className="text-warning">
-                          {" / "}
-                          {imp.rows_skipped} ignorees
-                        </span>
-                      )}
-                      {imp.rows_errored > 0 && (
-                        <span className="text-danger">
-                          {" / "}
-                          {imp.rows_errored} erreurs
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={IMPORT_STATUS_VARIANT[imp.status] ?? "secondary"}>
-                        {IMPORT_STATUS_LABELS[imp.status] ?? imp.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                {imports.map((imp) => {
+                  const outcomes = imp.outcomes ?? {
+                    added: imp.rows_imported,
+                    updated: 0,
+                    ignored: imp.rows_skipped,
+                    error: imp.rows_errored,
+                  };
+
+                  return (
+                    <tr
+                      key={imp.id}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
+                      onClick={() => router.push(`/transactions?account=${account.id}&import=${imp.id}`)}
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                        {formatDateTime(imp.inserted_at)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">{imp.filename}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        <span className="text-success">+{outcomes.added} ajoutes</span>
+                        <span className="mx-2 text-primary">{outcomes.updated} remplaces</span>
+                        <span className="text-warning">{outcomes.ignored} ignores</span>
+                        <span className="mx-2 text-danger">{outcomes.error} erreurs</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={IMPORT_STATUS_VARIANT[imp.status] ?? "secondary"}>
+                          {IMPORT_STATUS_LABELS[imp.status] ?? imp.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -126,6 +126,13 @@ export interface ImportRowDetail {
   error?: string;
 }
 
+export interface ImportOutcomes {
+  added: number;
+  updated: number;
+  ignored: number;
+  error: number;
+}
+
 export interface Import {
   id: string;
   account_id: string;
@@ -137,6 +144,7 @@ export interface Import {
   status: ImportStatus;
   error_details: ImportError[];
   row_details?: ImportRowDetail[];
+  outcomes?: ImportOutcomes;
   inserted_at: string;
   updated_at: string;
 }

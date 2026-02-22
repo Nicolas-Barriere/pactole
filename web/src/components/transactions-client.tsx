@@ -83,6 +83,7 @@ interface TransactionsClientProps {
     page: number;
     search: string;
     accountFilter: string;
+    importFilter: string;
     tagFilter: string;
     dateFrom: string;
     dateTo: string;
@@ -109,6 +110,7 @@ export function TransactionsClient({
   const {
     search,
     accountFilter,
+    importFilter,
     tagFilter,
     dateFrom,
     dateTo,
@@ -406,6 +408,7 @@ export function TransactionsClient({
   const endItem = Math.min(meta.page * meta.per_page, meta.total_count);
   const hasFilters = !!(
     accountFilter ||
+    importFilter ||
     tagFilter ||
     dateFrom ||
     dateTo ||
@@ -512,6 +515,7 @@ export function TransactionsClient({
             onClick={() =>
               updateParams({
                 account: null,
+                import: null,
                 tag: null,
                 from: null,
                 to: null,
