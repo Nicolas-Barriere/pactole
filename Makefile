@@ -1,4 +1,4 @@
-.PHONY: help setup dev stop restart logs clean test test.backend test.web db.reset db.migrate shell.backend shell.web shell.db
+.PHONY: help setup dev dev.logs stop restart logs logs.backend logs.web logs.db clean test test.backend test.web db.reset db.migrate db.seed shell.backend shell.web shell.db
 
 # ── Help ──────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ test.web: ## Run frontend (Next.js) linter
 
 # ── Database ──────────────────────────────────────────────
 
-db.reset: ## Drop, create, and migrate the database
+db.reset: ## Drop, recreate, migrate, and seed the database
 	docker compose exec backend mix ecto.reset
 
 db.migrate: ## Run pending database migrations
