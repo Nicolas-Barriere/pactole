@@ -116,12 +116,16 @@ defmodule Moulax.Imports do
   defp process_rows(account_id, import_id, rows) do
     tag_names = load_tag_names()
 
-    {added, updated, ignored, errored, errors_rev, details_rev} =
+    {added, updated, ignored, errored, errors_rev, details_rev, _occurrences} =
       rows
       |> Enum.with_index(2)
-      |> Enum.reduce({0, 0, 0, 0, [], []}, fn {row, row_index},
-                                              {added, updated, ignored, errored, errors, details} ->
+      |> Enum.reduce({0, 0, 0, 0, [], [], %{}}, fn {row, row_index},
+                                                   {added, updated, ignored, errored, errors,
+                                                    details, occurrences} ->
         tag_ids = Rules.match_tags(row.label)
+        key = deduplication_key(row)
+        occurrence = Map.get(occurrences, key, 0) + 1
+        occurrences = Map.put(occurrences, key, occurrence)
 
         attrs = %{
           account_id: account_id,
@@ -130,6 +134,7 @@ defmodule Moulax.Imports do
           label: row.label,
           original_label: row.original_label,
           amount: row.amount,
+          occurrence: occurrence,
           currency: row[:currency] || "EUR",
           bank_reference: row[:bank_reference],
           source: "csv_import"
@@ -153,22 +158,24 @@ defmodule Moulax.Imports do
           {:added, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
             detail = Map.put(base_detail, "status", "added")
-            {added + 1, updated, ignored, errored, errors, [detail | details]}
+            {added + 1, updated, ignored, errored, errors, [detail | details], occurrences}
 
           {:updated, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
             detail = Map.put(base_detail, "status", "updated")
-            {added, updated + 1, ignored, errored, errors, [detail | details]}
+            {added, updated + 1, ignored, errored, errors, [detail | details], occurrences}
 
           {:ignored, _reason} ->
             detail = Map.put(base_detail, "status", "ignored")
-            {added, updated, ignored + 1, errored, errors, [detail | details]}
+            {added, updated, ignored + 1, errored, errors, [detail | details], occurrences}
 
           {:error, changeset} ->
             msg = changeset_error_message(changeset)
             error = %{"row" => row_index, "message" => msg}
             detail = base_detail |> Map.put("status", "error") |> Map.put("error", msg)
-            {added, updated, ignored, errored + 1, [error | errors], [detail | details]}
+
+            {added, updated, ignored, errored + 1, [error | errors], [detail | details],
+             occurrences}
         end
       end)
 
@@ -246,9 +253,14 @@ defmodule Moulax.Imports do
         t.account_id == ^attrs.account_id and
           t.date == ^attrs.date and
           t.amount == ^attrs.amount and
-          t.original_label == ^attrs.original_label
+          t.original_label == ^attrs.original_label and
+          t.occurrence == ^attrs.occurrence
     )
     |> Repo.one()
+  end
+
+  defp deduplication_key(row) do
+    {row.date, row.amount, row.original_label}
   end
 
   defp sync_transaction_tags(transaction_id, tag_ids) do
