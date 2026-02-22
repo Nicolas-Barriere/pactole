@@ -17,6 +17,7 @@ async function TransactionsContent({
   const page = Number(params.page) || 1;
   const search = params.search || "";
   const accountFilter = params.account === "_all" ? "" : (params.account || "");
+  const importFilter = params.import || "";
   const tagFilter = params.tag === "_all" ? "" : (params.tag || "");
   const dateFrom = params.from || "";
   const dateTo = params.to || "";
@@ -29,6 +30,7 @@ async function TransactionsContent({
   q.set("per_page", String(PER_PAGE));
   if (search) q.set("search", search);
   if (accountFilter) q.set("account_id", accountFilter);
+  if (importFilter) q.set("import_id", importFilter);
   if (tagFilter) q.set("tag_id", tagFilter);
   if (dateFrom) q.set("date_from", dateFrom);
   if (dateTo) q.set("date_to", dateTo);
@@ -63,6 +65,7 @@ async function TransactionsContent({
         page,
         search,
         accountFilter,
+        importFilter,
         tagFilter,
         dateFrom,
         dateTo,
