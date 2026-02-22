@@ -77,6 +77,7 @@ defmodule MoulaxWeb.ImportController do
 
   @doc """
   GET /api/v1/accounts/:account_id/imports — List imports for account.
+  GET /api/v1/imports — List imports globally.
   """
   def index(conn, %{"account_id" => account_id}) do
     with {:ok, _account} <- Accounts.fetch_account(account_id) do
@@ -88,6 +89,11 @@ defmodule MoulaxWeb.ImportController do
         |> put_status(:not_found)
         |> json(%{errors: %{detail: "Account not found"}})
     end
+  end
+
+  def index(conn, _params) do
+    imports = Imports.list_imports()
+    json(conn, %{data: imports})
   end
 
   defp extract_file(%{"file" => %Plug.Upload{filename: filename, path: path}}) do

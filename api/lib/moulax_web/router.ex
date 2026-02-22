@@ -19,7 +19,7 @@ defmodule MoulaxWeb.Router do
     patch "/transactions/bulk-tag", TransactionController, :bulk_tag
     resources "/transactions", TransactionController, only: [:show, :update, :delete]
 
-    resources "/imports", ImportController, only: [:show]
+    resources "/imports", ImportController, only: [:index, :show]
     post "/imports/detect", ImportController, :detect
 
     resources "/tagging-rules", TaggingRuleController, except: [:new, :edit]

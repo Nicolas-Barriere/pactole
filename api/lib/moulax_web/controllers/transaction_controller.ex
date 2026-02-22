@@ -11,7 +11,7 @@ defmodule MoulaxWeb.TransactionController do
     opts =
       Map.take(
         params,
-        ~w(account_id tag_id date_from date_to search page per_page sort_by sort_order)
+        ~w(account_id import_id tag_id date_from date_to search page per_page sort_by sort_order)
       )
 
     result = Transactions.list_transactions(opts)

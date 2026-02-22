@@ -44,7 +44,7 @@ defmodule Moulax.Imports do
   def get_import(id) do
     case Repo.get(Import, id) do
       nil -> {:error, :not_found}
-      record -> {:ok, import_to_response(record)}
+      record -> {:ok, import_to_detailed_response(record)}
     end
   end
 
@@ -54,6 +54,16 @@ defmodule Moulax.Imports do
   def list_imports_for_account(account_id) do
     Import
     |> where([i], i.account_id == ^account_id)
+    |> order_by([i], desc: i.inserted_at)
+    |> Repo.all()
+    |> Enum.map(&import_to_response/1)
+  end
+
+  @doc """
+  Lists all imports globally, most recent first.
+  """
+  def list_imports do
+    Import
     |> order_by([i], desc: i.inserted_at)
     |> Repo.all()
     |> Enum.map(&import_to_response/1)
@@ -84,6 +94,7 @@ defmodule Moulax.Imports do
           rows_imported: rows_imported,
           rows_skipped: ignored,
           rows_errored: errored,
+          row_details: row_details,
           error_details: error_details
         })
         |> Repo.update!()
@@ -307,6 +318,7 @@ defmodule Moulax.Imports do
         rows_imported: 0,
         rows_skipped: 0,
         rows_errored: 0,
+        row_details: [],
         error_details: [%{"row" => 0, "message" => message} | error_details]
       })
       |> Repo.update!()
@@ -338,7 +350,64 @@ defmodule Moulax.Imports do
     }
   end
 
+  defp import_to_detailed_response(%Import{} = record) do
+    row_details = record.row_details || []
+
+    import_to_response(record)
+    |> Map.put(:row_details, row_details)
+    |> Map.put(:outcomes, outcomes_from_row_details(record, row_details))
+    |> Map.put(:transactions, list_transactions_for_import(record.id))
+  end
+
+  defp outcomes_from_row_details(record, []) do
+    %{
+      added: record.rows_imported,
+      updated: 0,
+      ignored: record.rows_skipped,
+      error: record.rows_errored
+    }
+  end
+
+  defp outcomes_from_row_details(_record, row_details) do
+    row_details
+    |> Enum.reduce(%{added: 0, updated: 0, ignored: 0, error: 0}, fn row, acc ->
+      case row["status"] do
+        "added" -> %{acc | added: acc.added + 1}
+        "updated" -> %{acc | updated: acc.updated + 1}
+        "ignored" -> %{acc | ignored: acc.ignored + 1}
+        "error" -> %{acc | error: acc.error + 1}
+        _ -> acc
+      end
+    end)
+  end
+
+  defp list_transactions_for_import(import_id) do
+    Transaction
+    |> where([t], t.import_id == ^import_id)
+    |> order_by([t], desc: t.date, desc: t.inserted_at)
+    |> Repo.all()
+    |> Enum.map(&transaction_to_response/1)
+  end
+
+  defp transaction_to_response(%Transaction{} = tx) do
+    %{
+      id: tx.id,
+      account_id: tx.account_id,
+      import_id: tx.import_id,
+      date: Date.to_iso8601(tx.date),
+      label: tx.label,
+      original_label: tx.original_label,
+      amount: format_decimal(tx.amount),
+      currency: tx.currency,
+      bank_reference: tx.bank_reference,
+      source: tx.source
+    }
+  end
+
   defp format_datetime(nil), do: nil
   defp format_datetime(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt) <> "Z"
   defp format_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp format_decimal(nil), do: nil
+  defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)
+  defp format_decimal(other), do: to_string(other)
 end

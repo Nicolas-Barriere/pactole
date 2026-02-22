@@ -245,6 +245,30 @@ defmodule MoulaxWeb.ImportControllerTest do
       conn = get(conn, ~p"/api/v1/imports/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
     end
+
+    test "returns outcomes and linked transactions for completed import", %{
+      conn: conn,
+      account: account
+    } do
+      csv_path = Path.join([__DIR__, "..", "..", "fixtures", "boursorama_valid.csv"])
+
+      upload = %Plug.Upload{
+        path: csv_path,
+        filename: "statement.csv",
+        content_type: "text/csv"
+      }
+
+      create_conn = post(conn, ~p"/api/v1/accounts/#{account.id}/imports", %{"file" => upload})
+      created = json_response(create_conn, 201)
+
+      detail_conn = build_conn() |> get(~p"/api/v1/imports/#{created["id"]}")
+      data = json_response(detail_conn, 200)
+
+      assert is_list(data["row_details"])
+      assert is_list(data["transactions"])
+      assert length(data["transactions"]) == 4
+      assert data["outcomes"] == %{"added" => 4, "updated" => 0, "ignored" => 0, "error" => 0}
+    end
   end
 
   describe "index GET /api/v1/accounts/:account_id/imports" do
@@ -267,6 +291,32 @@ defmodule MoulaxWeb.ImportControllerTest do
       conn = get(conn, ~p"/api/v1/accounts/#{account.id}/imports")
       data = json_response(conn, 200)
       assert data["data"] == []
+    end
+  end
+
+  describe "index GET /api/v1/imports" do
+    test "returns all imports newest first", %{conn: conn} do
+      account = insert_account()
+      {:ok, first} = Moulax.Imports.create_import(account.id, "first.csv")
+      {:ok, second} = Moulax.Imports.create_import(account.id, "second.csv")
+
+      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      older = NaiveDateTime.add(now, -10, :second)
+
+      Moulax.Repo.query!(
+        "UPDATE imports SET inserted_at = $1, updated_at = $1 WHERE id = '#{first.id}'::uuid",
+        [older]
+      )
+
+      Moulax.Repo.query!(
+        "UPDATE imports SET inserted_at = $1, updated_at = $1 WHERE id = '#{second.id}'::uuid",
+        [now]
+      )
+
+      conn = get(conn, ~p"/api/v1/imports")
+      data = json_response(conn, 200)
+
+      assert Enum.map(data["data"], & &1["id"]) == [second.id, first.id]
     end
   end
 end

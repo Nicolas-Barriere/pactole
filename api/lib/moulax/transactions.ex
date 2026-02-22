@@ -20,6 +20,7 @@ defmodule Moulax.Transactions do
 
   Options (all optional):
   - `account_id` — filter by account UUID
+  - `import_id` — filter by import UUID
   - `tag_id` — filter by tag UUID; use `"untagged"` to filter transactions with no tags
   - `date_from` — filter date >= (Date or ISO date string)
   - `date_to` — filter date <= (Date or ISO date string)
@@ -41,6 +42,7 @@ defmodule Moulax.Transactions do
       Transaction
       |> preload([:account, :tags, :import])
       |> apply_filter_account(opts)
+      |> apply_filter_import(opts)
       |> apply_filter_tag(opts)
       |> apply_filter_date_from(opts)
       |> apply_filter_date_to(opts)
@@ -73,6 +75,13 @@ defmodule Moulax.Transactions do
     case opts["account_id"] || opts[:account_id] do
       nil -> query
       id -> where(query, [t], t.account_id == ^id)
+    end
+  end
+
+  defp apply_filter_import(query, opts) do
+    case opts["import_id"] || opts[:import_id] do
+      nil -> query
+      id -> where(query, [t], t.import_id == ^id)
     end
   end
 

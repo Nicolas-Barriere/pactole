@@ -315,6 +315,22 @@ defmodule Moulax.ImportsTest do
     test "returns error for non-existent id" do
       assert {:error, :not_found} = Imports.get_import(Ecto.UUID.generate())
     end
+
+    test "returns outcomes and linked transactions for completed import", %{account: account} do
+      csv = File.read!(Path.join([__DIR__, "..", "fixtures", "boursorama_valid.csv"]))
+      {:ok, import_record} = Imports.create_import(account.id, "statement.csv")
+      assert {:ok, _} = Imports.process_import(import_record, csv)
+
+      assert {:ok, result} = Imports.get_import(import_record.id)
+      assert is_list(result.row_details)
+      assert is_list(result.transactions)
+      assert length(result.transactions) == 4
+      assert result.outcomes.added == 4
+      assert result.outcomes.updated == 0
+      assert result.outcomes.ignored == 0
+      assert result.outcomes.error == 0
+      assert Enum.all?(result.transactions, &(&1.import_id == import_record.id))
+    end
   end
 
   describe "list_imports_for_account/1" do
@@ -331,6 +347,32 @@ defmodule Moulax.ImportsTest do
 
     test "returns empty list for account with no imports", %{account: account} do
       assert Imports.list_imports_for_account(account.id) == []
+    end
+  end
+
+  describe "list_imports/0" do
+    test "returns global imports newest first" do
+      account = insert_account()
+
+      {:ok, first} = Imports.create_import(account.id, "first.csv")
+      {:ok, second} = Imports.create_import(account.id, "second.csv")
+
+      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      older = NaiveDateTime.add(now, -10, :second)
+
+      Repo.query!(
+        "UPDATE imports SET inserted_at = $1, updated_at = $1 WHERE id = '#{first.id}'::uuid",
+        [older]
+      )
+
+      Repo.query!(
+        "UPDATE imports SET inserted_at = $1, updated_at = $1 WHERE id = '#{second.id}'::uuid",
+        [now]
+      )
+
+      imports = Imports.list_imports()
+      ids = Enum.map(imports, & &1.id)
+      assert ids == [second.id, first.id]
     end
   end
 end
