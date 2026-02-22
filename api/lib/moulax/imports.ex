@@ -65,14 +65,20 @@ defmodule Moulax.Imports do
   @doc """
   Lists all imports globally, most recent first.
   """
-  def list_imports(opts \\ []) do
-    per_page = min(to_int(opts["per_page"] || opts[:per_page], @default_per_page), 100)
-    page = max(to_int(opts["page"] || opts[:page], 1), 1)
+  def list_imports do
+    base_imports_query()
+    |> Repo.all()
+    |> Enum.map(&import_to_response/1)
+  end
 
-    base =
-      Import
-      |> preload([:account])
-      |> order_by([i], desc: i.inserted_at)
+  @doc """
+  Lists all imports globally, paginated, most recent first.
+  """
+  def list_imports(opts) do
+    per_page = min(to_int(get_opt(opts, :per_page, @default_per_page), @default_per_page), 100)
+    page = max(to_int(get_opt(opts, :page, 1), 1), 1)
+
+    base = base_imports_query()
 
     total_count = Repo.aggregate(base, :count)
 
@@ -441,6 +447,12 @@ defmodule Moulax.Imports do
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)
   defp format_decimal(other), do: to_string(other)
 
+  defp base_imports_query do
+    Import
+    |> preload([:account])
+    |> order_by([i], desc: i.inserted_at)
+  end
+
   defp account_name(%Import{account: %Account{name: name}}), do: name
   defp account_name(_), do: nil
 
@@ -454,4 +466,14 @@ defmodule Moulax.Imports do
   end
 
   defp to_int(_, default), do: default
+
+  defp get_opt(opts, key, default) when is_map(opts) and is_atom(key) do
+    Map.get(opts, Atom.to_string(key)) || Map.get(opts, key, default)
+  end
+
+  defp get_opt(opts, key, default) when is_list(opts) and is_atom(key) do
+    Keyword.get(opts, key, default)
+  end
+
+  defp get_opt(_, _key, default), do: default
 end
