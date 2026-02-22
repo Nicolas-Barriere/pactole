@@ -17,6 +17,7 @@ defmodule Moulax.Imports.Import do
           rows_skipped: non_neg_integer(),
           rows_errored: non_neg_integer(),
           status: String.t(),
+          row_details: [map()] | nil,
           error_details: [map()] | nil,
           inserted_at: DateTime.t(),
           updated_at: DateTime.t()
@@ -31,6 +32,7 @@ defmodule Moulax.Imports.Import do
     field :rows_skipped, :integer, default: 0
     field :rows_errored, :integer, default: 0
     field :status, :string, default: "pending"
+    field :row_details, {:array, :map}
     field :error_details, {:array, :map}
 
     belongs_to :account, Account
@@ -50,6 +52,7 @@ defmodule Moulax.Imports.Import do
       :rows_skipped,
       :rows_errored,
       :status,
+      :row_details,
       :error_details,
       :account_id
     ])

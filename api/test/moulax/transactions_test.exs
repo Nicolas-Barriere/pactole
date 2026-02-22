@@ -41,6 +41,32 @@ defmodule Moulax.TransactionsTest do
       assert hd(result.data).account_id == a1.id
     end
 
+    test "filters by import_id" do
+      account = insert_account()
+      import_record = insert_import(%{account_id: account.id})
+      other_import = insert_import(%{account_id: account.id})
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Imported",
+        amount: Decimal.new("-1"),
+        source: "csv_import",
+        import_id: import_record.id
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Imported elsewhere",
+        amount: Decimal.new("-2"),
+        source: "csv_import",
+        import_id: other_import.id
+      })
+
+      result = Transactions.list_transactions(%{"import_id" => import_record.id})
+      assert result.meta.total_count == 1
+      assert hd(result.data).import_id == import_record.id
+    end
+
     test "filters by tag_id" do
       account = insert_account()
       tag = insert_tag()

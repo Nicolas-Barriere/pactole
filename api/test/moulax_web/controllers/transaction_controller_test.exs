@@ -78,6 +78,34 @@ defmodule MoulaxWeb.TransactionControllerTest do
       assert body["meta"]["total_count"] == 1
       assert hd(body["data"])["label"] == "CARREFOUR"
     end
+
+    test "filters by import_id", %{conn: conn, account: account} do
+      import_record = insert_import(%{account_id: account.id, filename: "statement.csv"})
+      other_import = insert_import(%{account_id: account.id, filename: "other.csv"})
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Imported A",
+        amount: Decimal.new("-10"),
+        source: "csv_import",
+        import_id: import_record.id
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-02],
+        label: "Imported B",
+        amount: Decimal.new("-20"),
+        source: "csv_import",
+        import_id: other_import.id
+      })
+
+      conn = get(conn, "/api/v1/transactions?import_id=#{import_record.id}")
+      body = json_response(conn, 200)
+      assert body["meta"]["total_count"] == 1
+      assert hd(body["data"])["import_id"] == import_record.id
+    end
   end
 
   describe "show GET /api/v1/transactions/:id" do
