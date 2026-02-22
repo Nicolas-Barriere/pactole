@@ -110,8 +110,13 @@ defmodule Moulax.ImportsTest do
 
       {:ok, import2} = Imports.create_import(account.id, "second.csv")
       assert {:ok, result2} = Imports.process_import(import2, csv)
-      assert result2.rows_imported == 0
-      assert result2.rows_skipped == 4
+      assert result2.rows_imported == 4
+      assert result2.rows_skipped == 0
+      assert Enum.all?(result2.row_details, &(&1["status"] == "updated"))
+
+      txs = Repo.all(from t in Transaction, where: t.account_id == ^account.id)
+      assert length(txs) == 4
+      assert Enum.all?(txs, &(&1.import_id == import2.id))
     end
 
     test "deduplicates across partial overlap — imports only new rows", %{account: account} do
@@ -125,12 +130,34 @@ defmodule Moulax.ImportsTest do
 
       {:ok, import2} = Imports.create_import(account.id, "overlap.csv")
       assert {:ok, result2} = Imports.process_import(import2, csv_overlap)
-      assert result2.rows_imported == 2
-      assert result2.rows_skipped == 2
+      assert result2.rows_imported == 4
+      assert result2.rows_skipped == 0
       assert result2.rows_errored == 0
+      assert Enum.count(result2.row_details, &(&1["status"] == "updated")) == 2
+      assert Enum.count(result2.row_details, &(&1["status"] == "added")) == 2
 
       total = Repo.aggregate(from(t in Transaction, where: t.account_id == ^account.id), :count)
       assert total == 6
+    end
+
+    test "keeps legacy rows without import_id as ignored", %{account: account} do
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-10],
+        label: "Carrefour",
+        original_label: "Carrefour | CARTE 10/02/26 CARREFOUR CB*1234",
+        amount: Decimal.new("-45.32"),
+        source: "manual",
+        import_id: nil
+      })
+
+      csv = File.read!(Path.join([__DIR__, "..", "fixtures", "boursorama_valid.csv"]))
+      {:ok, import_record} = Imports.create_import(account.id, "legacy_overlap.csv")
+
+      assert {:ok, result} = Imports.process_import(import_record, csv)
+      assert result.rows_imported == 3
+      assert result.rows_skipped == 1
+      assert Enum.count(result.row_details, &(&1["status"] == "ignored")) == 1
     end
   end
 
@@ -154,8 +181,8 @@ defmodule Moulax.ImportsTest do
 
       {:ok, import2} = Imports.create_import(account.id, "revolut_fees2.csv")
       assert {:ok, result2} = Imports.process_import(import2, csv)
-      assert result2.rows_skipped == first_import_count
-      assert result2.rows_imported == 0
+      assert result2.rows_skipped == 0
+      assert result2.rows_imported == first_import_count
     end
   end
 

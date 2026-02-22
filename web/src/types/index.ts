@@ -114,7 +114,7 @@ export interface ImportError {
   message: string;
 }
 
-export type ImportRowStatus = "added" | "skipped" | "error";
+export type ImportRowStatus = "added" | "updated" | "ignored" | "error";
 
 export interface ImportRowDetail {
   row: number;

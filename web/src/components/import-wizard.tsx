@@ -685,14 +685,16 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   added: { label: "Ajoutée", color: "text-success", bg: "bg-success/10" },
-  skipped: { label: "Ignorée", color: "text-warning", bg: "bg-warning/10" },
+  updated: { label: "Remplacée", color: "text-primary", bg: "bg-primary/10" },
+  ignored: { label: "Ignorée", color: "text-warning", bg: "bg-warning/10" },
   error: { label: "Erreur", color: "text-danger", bg: "bg-danger/10" },
 };
 
 const FILTER_OPTIONS: { value: "all" | ImportRowStatus; label: string }[] = [
   { value: "all", label: "Tout" },
   { value: "added", label: "Ajoutées" },
-  { value: "skipped", label: "Ignorées" },
+  { value: "updated", label: "Remplacées" },
+  { value: "ignored", label: "Ignorées" },
   { value: "error", label: "Erreurs" },
 ];
 
@@ -705,7 +707,7 @@ function ImportResultsTable({ rows }: { rows: ImportRowDetail[] }) {
   );
 
   const counts = useMemo(() => {
-    const c = { all: rows.length, added: 0, skipped: 0, error: 0 };
+    const c = { all: rows.length, added: 0, updated: 0, ignored: 0, error: 0 };
     for (const r of rows) c[r.status]++;
     return c;
   }, [rows]);
