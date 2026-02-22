@@ -120,8 +120,7 @@ defmodule Moulax.Imports do
       rows
       |> Enum.with_index(2)
       |> Enum.reduce({0, 0, 0, 0, [], []}, fn {row, row_index},
-                                             {added, updated, ignored, errored, errors,
-                                              details} ->
+                                              {added, updated, ignored, errored, errors, details} ->
         tag_ids = Rules.match_tags(row.label)
 
         attrs = %{
