@@ -201,6 +201,7 @@ defmodule Moulax.Imports do
         case upsert_transaction(attrs) do
           {:added, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
+
             detail =
               base_detail
               |> Map.put("status", "added")
@@ -210,6 +211,7 @@ defmodule Moulax.Imports do
 
           {:updated, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
+
             detail =
               base_detail
               |> Map.put("status", "updated")
@@ -470,7 +472,10 @@ defmodule Moulax.Imports do
         replacing_import_id ->
           detail
           |> Map.put("is_replaced", true)
-          |> Map.put("replaced_by_import_filename", Map.get(replacing_import_filenames, replacing_import_id))
+          |> Map.put(
+            "replaced_by_import_filename",
+            Map.get(replacing_import_filenames, replacing_import_id)
+          )
       end
     end)
   end
