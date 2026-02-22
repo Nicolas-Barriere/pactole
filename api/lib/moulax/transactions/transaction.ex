@@ -18,6 +18,7 @@ defmodule Moulax.Transactions.Transaction do
           label: String.t(),
           original_label: String.t(),
           amount: Decimal.t(),
+          occurrence: pos_integer(),
           currency: String.t(),
           bank_reference: String.t() | nil,
           source: String.t(),
@@ -33,6 +34,7 @@ defmodule Moulax.Transactions.Transaction do
     field :label, :string
     field :original_label, :string
     field :amount, :decimal
+    field :occurrence, :integer, default: 1
     field :currency, :string
     field :bank_reference, :string
     field :source, :string
@@ -45,18 +47,19 @@ defmodule Moulax.Transactions.Transaction do
   end
 
   @required_fields [:account_id, :date, :label, :original_label, :amount, :source]
-  @optional_fields [:currency, :bank_reference, :import_id]
+  @optional_fields [:currency, :bank_reference, :import_id, :occurrence]
 
   @doc false
   def changeset(transaction, attrs) do
     transaction
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+    |> validate_number(:occurrence, greater_than: 0)
     |> validate_inclusion(:source, ["csv_import", "manual"])
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:import_id)
-    |> unique_constraint([:account_id, :date, :amount, :original_label],
-      name: :transactions_account_date_amount_original_label_index
+    |> unique_constraint([:account_id, :date, :amount, :original_label, :occurrence],
+      name: :transactions_account_date_amount_original_label_occ_idx
     )
     |> put_currency_default()
     |> validate_inclusion(:currency, Currencies.codes())

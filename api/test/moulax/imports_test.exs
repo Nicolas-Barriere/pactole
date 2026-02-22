@@ -140,6 +140,44 @@ defmodule Moulax.ImportsTest do
       assert total == 6
     end
 
+    test "deduplicates by occurrence for same-day identical transactions", %{account: account} do
+      csv_partial =
+        File.read!(
+          Path.join([__DIR__, "..", "fixtures", "boursorama_same_day_duplicate_partial.csv"])
+        )
+
+      {:ok, import1} = Imports.create_import(account.id, "same_day_partial.csv")
+      assert {:ok, result1} = Imports.process_import(import1, csv_partial)
+      assert result1.rows_imported == 1
+
+      csv_full =
+        File.read!(
+          Path.join([__DIR__, "..", "fixtures", "boursorama_same_day_duplicate_full.csv"])
+        )
+
+      {:ok, import2} = Imports.create_import(account.id, "same_day_full.csv")
+      assert {:ok, result2} = Imports.process_import(import2, csv_full)
+      assert result2.rows_imported == 2
+      assert result2.rows_skipped == 0
+      assert Enum.count(result2.row_details, &(&1["status"] == "updated")) == 1
+      assert Enum.count(result2.row_details, &(&1["status"] == "added")) == 1
+
+      same_day_duplicates =
+        Repo.all(
+          from t in Transaction,
+            where:
+              t.account_id == ^account.id and
+                t.date == ^~D[2026-02-10] and
+                t.amount == ^Decimal.new("-45.32") and
+                t.original_label == ^"Carrefour | CARTE 10/02/26 CARREFOUR CB*1234",
+            order_by: [asc: t.occurrence]
+        )
+
+      assert length(same_day_duplicates) == 2
+      assert Enum.map(same_day_duplicates, & &1.occurrence) == [1, 2]
+      assert Enum.all?(same_day_duplicates, &(&1.import_id == import2.id))
+    end
+
     test "keeps legacy rows without import_id as ignored", %{account: account} do
       insert_transaction(%{
         account_id: account.id,
