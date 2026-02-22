@@ -129,7 +129,7 @@ defmodule MoulaxWeb.ImportControllerTest do
       assert json_response(conn, 404)["errors"]["detail"] == "Account not found"
     end
 
-    test "duplicate import skips all rows on second import", %{conn: conn, account: account} do
+    test "duplicate import replaces all rows on second import", %{conn: conn, account: account} do
       csv_path = Path.join([__DIR__, "..", "..", "fixtures", "boursorama_valid.csv"])
 
       upload = %Plug.Upload{
@@ -147,8 +147,9 @@ defmodule MoulaxWeb.ImportControllerTest do
         |> post(~p"/api/v1/accounts/#{account.id}/imports", %{"file" => upload})
 
       data2 = json_response(conn2, 201)
-      assert data2["rows_imported"] == 0
-      assert data2["rows_skipped"] == 4
+      assert data2["rows_imported"] == 4
+      assert data2["rows_skipped"] == 0
+      assert Enum.all?(data2["row_details"], &(&1["status"] == "updated"))
     end
   end
 
