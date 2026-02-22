@@ -69,10 +69,17 @@ export interface TagRef {
   color: string;
 }
 
+export interface ImportRef {
+  id: string;
+  filename: string;
+}
+
 export interface Transaction {
   id: string;
   account_id: string;
   account: AccountRef | null;
+  import_id: string | null;
+  import: ImportRef | null;
   date: string;
   label: string;
   original_label: string;
@@ -120,10 +127,16 @@ export interface ImportRowDetail {
   row: number;
   date: string;
   label: string;
+  original_label?: string;
   amount: string;
   tags: string | null;
+  occurrence?: number;
   status: ImportRowStatus;
   error?: string;
+  transaction_id?: string;
+  is_replaced?: boolean;
+  replaced_by_import_id?: string;
+  replaced_by_import_filename?: string;
 }
 
 export interface ImportOutcomes {
