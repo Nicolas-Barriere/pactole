@@ -45,7 +45,7 @@ defmodule Moulax.Imports do
   Returns `{:ok, import_map}` or `{:error, :not_found}`.
   """
   def get_import(id) do
-    case Repo.get(Import, id) do
+    case Repo.get(Import, id) |> Repo.preload([:account]) do
       nil -> {:error, :not_found}
       record -> {:ok, import_to_detailed_response(record)}
     end
@@ -192,19 +192,31 @@ defmodule Moulax.Imports do
           "row" => row_index,
           "date" => to_string(row.date),
           "label" => row.label,
+          "original_label" => row.original_label,
           "amount" => to_string(row.amount),
+          "occurrence" => occurrence,
           "tags" => tag_label
         }
 
         case upsert_transaction(attrs) do
           {:added, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
-            detail = Map.put(base_detail, "status", "added")
+
+            detail =
+              base_detail
+              |> Map.put("status", "added")
+              |> Map.put("transaction_id", tx.id)
+
             {added + 1, updated, ignored, errored, errors, [detail | details], occurrences}
 
           {:updated, tx} ->
             sync_transaction_tags(tx.id, tag_ids)
-            detail = Map.put(base_detail, "status", "updated")
+
+            detail =
+              base_detail
+              |> Map.put("status", "updated")
+              |> Map.put("transaction_id", tx.id)
+
             {added, updated + 1, ignored, errored, errors, [detail | details], occurrences}
 
           {:ignored, _reason} ->
@@ -387,7 +399,10 @@ defmodule Moulax.Imports do
   end
 
   defp import_to_detailed_response(%Import{} = record) do
-    row_details = record.row_details || []
+    row_details =
+      record.row_details
+      |> Kernel.||([])
+      |> enrich_row_details(record)
 
     import_to_response(record)
     |> Map.put(:row_details, row_details)
@@ -424,6 +439,90 @@ defmodule Moulax.Imports do
     |> Repo.all()
     |> Enum.map(&transaction_to_response/1)
   end
+
+  defp enrich_row_details(row_details, %Import{} = record) do
+    details_with_replacement_id =
+      Enum.map(row_details, fn detail ->
+        case find_current_transaction_for_row(record.account_id, detail) do
+          %Transaction{import_id: import_id}
+          when is_binary(import_id) and import_id != record.id ->
+            Map.put(detail, "replaced_by_import_id", import_id)
+
+          _ ->
+            detail
+        end
+      end)
+
+    replacing_import_ids =
+      details_with_replacement_id
+      |> Enum.map(&Map.get(&1, "replaced_by_import_id"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    replacing_import_filenames =
+      from(i in Import, where: i.id in ^replacing_import_ids, select: {i.id, i.filename})
+      |> Repo.all()
+      |> Map.new()
+
+    Enum.map(details_with_replacement_id, fn detail ->
+      case Map.get(detail, "replaced_by_import_id") do
+        nil ->
+          Map.put(detail, "is_replaced", false)
+
+        replacing_import_id ->
+          detail
+          |> Map.put("is_replaced", true)
+          |> Map.put(
+            "replaced_by_import_filename",
+            Map.get(replacing_import_filenames, replacing_import_id)
+          )
+      end
+    end)
+  end
+
+  defp find_current_transaction_for_row(account_id, detail) do
+    original_label = detail["original_label"] || detail["label"]
+    occurrence = detail["occurrence"] || 1
+
+    with {:ok, date} <- parse_iso_date(detail["date"]),
+         {:ok, amount} <- parse_decimal(detail["amount"]),
+         true <- is_binary(original_label),
+         true <- is_integer(occurrence) do
+      from(t in Transaction,
+        where:
+          t.account_id == ^account_id and
+            t.date == ^date and
+            t.amount == ^amount and
+            t.original_label == ^original_label and
+            t.occurrence == ^occurrence
+      )
+      |> Repo.one()
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_iso_date(nil), do: :error
+
+  defp parse_iso_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> {:ok, date}
+      _ -> :error
+    end
+  end
+
+  defp parse_iso_date(_), do: :error
+
+  defp parse_decimal(nil), do: :error
+
+  defp parse_decimal(value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {%Decimal{} = decimal, ""} -> {:ok, decimal}
+      _ -> :error
+    end
+  end
+
+  defp parse_decimal(_), do: :error
 
   defp transaction_to_response(%Transaction{} = tx) do
     %{

@@ -694,7 +694,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
               return (
                 <Link
                   key={item.id}
-                  href={`/transactions?account=${item.account_id}&import=${item.id}`}
+                  href={`/import/${item.id}`}
                   className="block border border-border bg-card p-4 transition-colors hover:bg-accent"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -853,10 +853,18 @@ function ResultsStep({
       <div className="flex flex-wrap items-center gap-3">
         {!isFailed && (
           <Link
-            href={`/accounts/${accountId}`}
+            href={`/import/${result.id}`}
             className="inline-flex h-9 items-center gap-2 bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Voir les transactions
+            Voir le détail de l&apos;import
+          </Link>
+        )}
+        {!isFailed && (
+          <Link
+            href={`/accounts/${accountId}`}
+            className="inline-flex h-9 items-center gap-2 border border-border px-4 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            Voir le compte
           </Link>
         )}
         <Button variant="outline" className="h-9" onClick={onImportAnother}>

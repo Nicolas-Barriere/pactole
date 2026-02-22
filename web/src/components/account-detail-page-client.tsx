@@ -11,7 +11,7 @@ import {
   type CurrencyDisplayMode,
 } from "@/components/currency-display-toggle";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, PenLine, FileText } from "lucide-react";
 import {
   BANK_LABELS,
   getAccountTypeBadgeClass,
@@ -158,6 +158,7 @@ export function AccountDetailPageClient({
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Libelle</th>
                   <th className="px-4 py-3 font-medium">Tags</th>
+                  <th className="px-4 py-3 font-medium">Origine</th>
                   <th className="px-4 py-3 text-right font-medium">Montant</th>
                 </tr>
               </thead>
@@ -194,6 +195,28 @@ export function AccountDetailPageClient({
                           </span>
                         ) : (
                           <span className="text-muted-foreground/50">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {tx.source !== "csv_import" ? (
+                          <span
+                            className="inline-flex text-muted-foreground/60"
+                            title="Transaction manuelle"
+                          >
+                            <PenLine className="h-4 w-4" />
+                          </span>
+                        ) : tx.import_id && tx.import ? (
+                          <Link
+                            href={`/import/${tx.import_id}`}
+                            className="inline-flex text-primary hover:text-primary/80"
+                            title={`Voir l'import ${tx.import.filename}`}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Link>
+                        ) : (
+                          <span className="inline-flex text-muted-foreground/60" title="Import CSV">
+                            <FileText className="h-4 w-4" />
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -262,7 +285,7 @@ export function AccountDetailPageClient({
                     <tr
                       key={imp.id}
                       className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
-                      onClick={() => router.push(`/transactions?account=${account.id}&import=${imp.id}`)}
+                      onClick={() => router.push(`/import/${imp.id}`)}
                     >
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {formatDateTime(imp.inserted_at)}

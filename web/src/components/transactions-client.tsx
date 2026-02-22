@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -14,6 +15,8 @@ import {
   ArrowDown,
   CalendarIcon,
   X,
+  PenLine,
+  FileText,
 } from "lucide-react";
 import {
   useReactTable,
@@ -377,6 +380,39 @@ export function TransactionsClient({
           {row.original.account?.name ?? "—"}
         </span>
       ),
+    },
+    {
+      id: "origin",
+      header: "Origine",
+      cell: ({ row }) => {
+        const tx = row.original;
+
+        if (tx.source !== "csv_import") {
+          return (
+            <span className="inline-flex text-muted-foreground/60" title="Transaction manuelle">
+              <PenLine className="h-4 w-4" />
+            </span>
+          );
+        }
+
+        if (!tx.import_id || !tx.import) {
+          return (
+            <span className="inline-flex text-muted-foreground/60" title="Import CSV">
+              <FileText className="h-4 w-4" />
+            </span>
+          );
+        }
+
+        return (
+          <Link
+            href={`/import/${encodeURIComponent(tx.import_id)}`}
+            className="inline-flex text-primary hover:text-primary/80"
+            title={`Voir l'import ${tx.import.filename}`}
+          >
+            <FileText className="h-4 w-4" />
+          </Link>
+        );
+      },
     },
   ];
 
