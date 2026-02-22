@@ -136,6 +136,7 @@ export interface ImportOutcomes {
 export interface Import {
   id: string;
   account_id: string;
+  account_name?: string | null;
   filename: string;
   rows_total: number;
   rows_imported: number;

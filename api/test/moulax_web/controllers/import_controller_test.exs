@@ -316,7 +316,29 @@ defmodule MoulaxWeb.ImportControllerTest do
       conn = get(conn, ~p"/api/v1/imports")
       data = json_response(conn, 200)
 
+      assert data["meta"]["page"] == 1
+      assert data["meta"]["per_page"] == 20
+      assert data["meta"]["total_count"] == 2
+      assert data["meta"]["total_pages"] == 1
       assert Enum.map(data["data"], & &1["id"]) == [second.id, first.id]
+      assert Enum.all?(data["data"], &is_binary(&1["account_name"]))
+      assert Enum.all?(data["data"], &is_map(&1["outcomes"]))
+    end
+
+    test "supports pagination params", %{conn: conn} do
+      account = insert_account()
+      {:ok, _} = Moulax.Imports.create_import(account.id, "a.csv")
+      {:ok, _} = Moulax.Imports.create_import(account.id, "b.csv")
+      {:ok, _} = Moulax.Imports.create_import(account.id, "c.csv")
+
+      conn = get(conn, ~p"/api/v1/imports?page=2&per_page=1")
+      data = json_response(conn, 200)
+
+      assert data["meta"]["page"] == 2
+      assert data["meta"]["per_page"] == 1
+      assert data["meta"]["total_count"] == 3
+      assert data["meta"]["total_pages"] == 3
+      assert length(data["data"]) == 1
     end
   end
 end

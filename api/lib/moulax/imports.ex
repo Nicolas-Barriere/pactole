@@ -6,8 +6,11 @@ defmodule Moulax.Imports do
   import Ecto.Query
 
   alias Moulax.Repo
+  alias Moulax.Accounts.Account
   alias Moulax.Imports.Import
   alias Moulax.Parsers
+  @default_per_page 20
+
   alias Moulax.Tags.Tag
   alias Moulax.Tags.Rules
   alias Moulax.Tags.TransactionTag
@@ -62,11 +65,33 @@ defmodule Moulax.Imports do
   @doc """
   Lists all imports globally, most recent first.
   """
-  def list_imports do
-    Import
-    |> order_by([i], desc: i.inserted_at)
-    |> Repo.all()
-    |> Enum.map(&import_to_response/1)
+  def list_imports(opts \\ []) do
+    per_page = min(to_int(opts["per_page"] || opts[:per_page], @default_per_page), 100)
+    page = max(to_int(opts["page"] || opts[:page], 1), 1)
+
+    base =
+      Import
+      |> preload([:account])
+      |> order_by([i], desc: i.inserted_at)
+
+    total_count = Repo.aggregate(base, :count)
+
+    data =
+      base
+      |> offset(^((page - 1) * per_page))
+      |> limit(^per_page)
+      |> Repo.all()
+      |> Enum.map(&import_to_response/1)
+
+    %{
+      data: data,
+      meta: %{
+        page: page,
+        per_page: per_page,
+        total_count: total_count,
+        total_pages: ceil(total_count / per_page)
+      }
+    }
   end
 
   # -- Pipeline internals --
@@ -336,17 +361,22 @@ defmodule Moulax.Imports do
   end
 
   defp import_to_response(%Import{} = record) do
+    outcomes = outcomes_from_row_details(record, record.row_details || [])
+
     %{
       id: record.id,
       account_id: record.account_id,
+      account_name: account_name(record),
       filename: record.filename,
       status: record.status,
       rows_total: record.rows_total,
       rows_imported: record.rows_imported,
       rows_skipped: record.rows_skipped,
       rows_errored: record.rows_errored,
+      outcomes: outcomes,
       error_details: record.error_details || [],
-      inserted_at: format_datetime(record.inserted_at)
+      inserted_at: format_datetime(record.inserted_at),
+      updated_at: format_datetime(record.updated_at)
     }
   end
 
@@ -410,4 +440,18 @@ defmodule Moulax.Imports do
   defp format_decimal(nil), do: nil
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)
   defp format_decimal(other), do: to_string(other)
+
+  defp account_name(%Import{account: %Account{name: name}}), do: name
+  defp account_name(_), do: nil
+
+  defp to_int(value, _default) when is_integer(value), do: value
+
+  defp to_int(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> int
+      _ -> default
+    end
+  end
+
+  defp to_int(_, default), do: default
 end

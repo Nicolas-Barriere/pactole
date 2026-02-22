@@ -92,8 +92,9 @@ defmodule MoulaxWeb.ImportController do
   end
 
   def index(conn, _params) do
-    imports = Imports.list_imports()
-    json(conn, %{data: imports})
+    opts = Map.take(conn.params, ~w(page per_page))
+    result = Imports.list_imports(opts)
+    json(conn, result)
   end
 
   defp extract_file(%{"file" => %Plug.Upload{filename: filename, path: path}}) do

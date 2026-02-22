@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useRef, useMemo, type DragEvent } from "react";
+import {
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useCallback,
+  type DragEvent,
+} from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, importsApi } from "@/lib/api";
 import { BANK_LABELS } from "@/lib/account-metadata";
 import { formatAmount } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -16,7 +23,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAccount } from "@/app/actions/accounts";
-import type { Account, Import, ImportRowDetail, ImportRowStatus } from "@/types";
+import type {
+  Account,
+  Import,
+  ImportOutcomes,
+  ImportRowDetail,
+  ImportRowStatus,
+} from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -42,6 +55,29 @@ function formatShortDate(iso: string): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+const IMPORT_STATUS_LABELS: Record<string, string> = {
+  completed: "Termine",
+  processing: "En cours",
+  pending: "En attente",
+  failed: "Echoue",
+};
+
+const IMPORT_STATUS_CLASS: Record<string, string> = {
+  completed: "bg-success/10 text-success",
+  processing: "bg-warning/10 text-warning",
+  pending: "bg-muted/20 text-muted-foreground",
+  failed: "bg-destructive/10 text-destructive",
+};
+
+function fallbackOutcomes(imp: Import): ImportOutcomes {
+  return {
+    added: imp.rows_imported,
+    updated: 0,
+    ignored: imp.rows_skipped,
+    error: imp.rows_errored,
+  };
 }
 
 /* ── Types ───────────────────────────────────────────── */
@@ -71,8 +107,15 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [importResult, setImportResult] = useState<Import | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [timelineItems, setTimelineItems] = useState<Import[]>([]);
+  const [timelinePage, setTimelinePage] = useState(1);
+  const [timelineHasMore, setTimelineHasMore] = useState(false);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timelineLoadMoreRef = useRef<HTMLDivElement>(null);
+  const timelineLoadingRef = useRef(false);
   const selectableAccounts = detectedBank
     ? availableAccounts.filter((a) => a.bank === detectedBank)
     : availableAccounts;
@@ -80,6 +123,73 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
     ? (selectableAccounts.find((a) => a.id === selectedAccountId)?.name ??
       "Compte inconnu")
     : "Sélectionnez un compte…";
+  const accountNameById = useMemo(
+    () => new Map(availableAccounts.map((account) => [account.id, account.name])),
+    [availableAccounts],
+  );
+
+  const loadTimelinePage = useCallback(
+    async (page: number, replace = false) => {
+      if (timelineLoadingRef.current) return;
+
+      timelineLoadingRef.current = true;
+      setTimelineLoading(true);
+      setTimelineError(null);
+
+      try {
+        const response = await importsApi.list(page, 20);
+        const incoming = Array.isArray(response.data) ? response.data : [];
+
+        setTimelineItems((previous) => {
+          if (replace) return incoming;
+          const known = new Set(previous.map((item) => item.id));
+          const uniqueIncoming = incoming.filter((item) => !known.has(item.id));
+          return [...previous, ...uniqueIncoming];
+        });
+
+        const totalPages = response.meta?.total_pages ?? page;
+        setTimelinePage(page);
+        setTimelineHasMore(page < totalPages);
+      } catch {
+        setTimelineError("Impossible de charger l'historique global.");
+      } finally {
+        timelineLoadingRef.current = false;
+        setTimelineLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void loadTimelinePage(1, true);
+  }, [loadTimelinePage]);
+
+  useEffect(() => {
+    const target = timelineLoadMoreRef.current;
+    if (!target || !timelineHasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        void loadTimelinePage(timelinePage + 1);
+      },
+      { rootMargin: "240px 0px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [timelineHasMore, timelinePage, loadTimelinePage]);
+
+  function prependToTimeline(importData: Import, accountId: string) {
+    const accountName = accountNameById.get(accountId) ?? null;
+    const nextItem: Import = { ...importData, account_name: accountName };
+
+    setTimelineItems((previous) => {
+      const deduped = previous.filter((item) => item.id !== nextItem.id);
+      return [nextItem, ...deduped];
+    });
+  }
 
   /* ── File handling + bank detection ────────────────── */
 
@@ -188,6 +298,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
         formData,
       );
       setImportResult(result);
+      prependToTimeline(result, accountId);
       setStep("results");
       toast.success("Import terminé avec succès");
     } catch (err) {
@@ -550,6 +661,84 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
           onImportAnother={resetToUploadStep}
         />
       )}
+
+      <section className="space-y-3 border-t border-border pt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Historique global des imports CSV</h2>
+          {timelineLoading && timelineItems.length === 0 && (
+            <span className="text-xs text-muted-foreground">Chargement…</span>
+          )}
+        </div>
+
+        {timelineError && timelineItems.length === 0 ? (
+          <div className="border border-dashed border-destructive/40 bg-card p-5 text-sm text-muted-foreground">
+            {timelineError}
+            <button
+              onClick={() => void loadTimelinePage(1, true)}
+              className="ml-2 font-medium text-primary hover:text-primary/80"
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : timelineItems.length === 0 ? (
+          <div className="border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
+            Aucun import pour le moment.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {timelineItems.map((item) => {
+              const outcomes = item.outcomes ?? fallbackOutcomes(item);
+              const accountLabel =
+                item.account_name ?? accountNameById.get(item.account_id) ?? "Compte inconnu";
+
+              return (
+                <Link
+                  key={item.id}
+                  href={`/transactions?account=${item.account_id}&import=${item.id}`}
+                  className="block border border-border bg-card p-4 transition-colors hover:bg-accent"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-xs text-muted-foreground">
+                        {item.filename}
+                      </p>
+                      <p className="text-sm font-medium">{accountLabel}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(item.inserted_at)}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span
+                        className={`inline-flex px-2 py-0.5 text-[11px] font-medium ${
+                          IMPORT_STATUS_CLASS[item.status] ?? "bg-muted/20 text-muted-foreground"
+                        }`}
+                      >
+                        {IMPORT_STATUS_LABELS[item.status] ?? item.status}
+                      </span>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="text-success">+{outcomes.added} ajoutées</span>
+                        <span className="mx-2 text-primary">{outcomes.updated} remplacées</span>
+                        <span className="text-warning">{outcomes.ignored} ignorées</span>
+                        <span className="mx-2 text-danger">{outcomes.error} erreurs</span>
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        <div ref={timelineLoadMoreRef} className="flex min-h-8 items-center justify-center">
+          {timelineLoading && timelineItems.length > 0 && (
+            <span className="text-xs text-muted-foreground">Chargement de plus d&apos;imports…</span>
+          )}
+          {!timelineHasMore && timelineItems.length > 0 && (
+            <span className="text-xs text-muted-foreground">Fin de l&apos;historique</span>
+          )}
+        </div>
+      </section>
 
       <AccountForm
         key={`import-create-${createAccountOpen ? "open" : "closed"}-${detectedBank ?? "none"}`}

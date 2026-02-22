@@ -94,6 +94,8 @@ import type {
   DashboardTrends,
   DashboardTopExpenses,
   ExchangeRatesResponse,
+  Import,
+  PaginatedResponse,
 } from "@/types";
 
 export const dashboard = {
@@ -117,4 +119,9 @@ export const exchangeRates = {
     api.get<ExchangeRatesResponse>(
       `/exchange-rates?base=${encodeURIComponent(base)}`,
     ),
+};
+
+export const importsApi = {
+  list: (page = 1, perPage = 20) =>
+    api.get<PaginatedResponse<Import>>(`/imports?page=${page}&per_page=${perPage}`),
 };
