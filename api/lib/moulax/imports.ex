@@ -70,18 +70,19 @@ defmodule Moulax.Imports do
   defp run_pipeline(import_record, csv_content) do
     with {:ok, parser} <- detect_parser(csv_content),
          {:ok, rows} <- parse_csv(parser, csv_content) do
-      {imported, skipped, errored, error_details, row_details} =
+      {added, updated, ignored, errored, error_details, row_details} =
         process_rows(import_record.account_id, import_record.id, rows)
 
-      total = imported + skipped + errored
+      rows_imported = added + updated
+      total = rows_imported + ignored + errored
 
       updated =
         import_record
         |> Import.changeset(%{
           status: "completed",
           rows_total: total,
-          rows_imported: imported,
-          rows_skipped: skipped,
+          rows_imported: rows_imported,
+          rows_skipped: ignored,
           rows_errored: errored,
           error_details: error_details
         })
@@ -115,11 +116,12 @@ defmodule Moulax.Imports do
   defp process_rows(account_id, import_id, rows) do
     tag_names = load_tag_names()
 
-    {imported, skipped, errored, errors_rev, details_rev} =
+    {added, updated, ignored, errored, errors_rev, details_rev} =
       rows
       |> Enum.with_index(2)
-      |> Enum.reduce({0, 0, 0, [], []}, fn {row, row_index},
-                                           {imported, skipped, errored, errors, details} ->
+      |> Enum.reduce({0, 0, 0, 0, [], []}, fn {row, row_index},
+                                             {added, updated, ignored, errored, errors,
+                                              details} ->
         tag_ids = Rules.match_tags(row.label)
 
         attrs = %{
@@ -148,28 +150,30 @@ defmodule Moulax.Imports do
           "tags" => tag_label
         }
 
-        case insert_transaction(attrs) do
-          {:ok, tx} ->
-            if tag_ids != [] do
-              insert_transaction_tags(tx.id, tag_ids)
-            end
-
+        case upsert_transaction(attrs) do
+          {:added, tx} ->
+            sync_transaction_tags(tx.id, tag_ids)
             detail = Map.put(base_detail, "status", "added")
-            {imported + 1, skipped, errored, errors, [detail | details]}
+            {added + 1, updated, ignored, errored, errors, [detail | details]}
 
-          {:duplicate, _} ->
-            detail = Map.put(base_detail, "status", "skipped")
-            {imported, skipped + 1, errored, errors, [detail | details]}
+          {:updated, tx} ->
+            sync_transaction_tags(tx.id, tag_ids)
+            detail = Map.put(base_detail, "status", "updated")
+            {added, updated + 1, ignored, errored, errors, [detail | details]}
+
+          {:ignored, _reason} ->
+            detail = Map.put(base_detail, "status", "ignored")
+            {added, updated, ignored + 1, errored, errors, [detail | details]}
 
           {:error, changeset} ->
             msg = changeset_error_message(changeset)
             error = %{"row" => row_index, "message" => msg}
             detail = base_detail |> Map.put("status", "error") |> Map.put("error", msg)
-            {imported, skipped, errored + 1, [error | errors], [detail | details]}
+            {added, updated, ignored, errored + 1, [error | errors], [detail | details]}
         end
       end)
 
-    {imported, skipped, errored, Enum.reverse(errors_rev), Enum.reverse(details_rev)}
+    {added, updated, ignored, errored, Enum.reverse(errors_rev), Enum.reverse(details_rev)}
   end
 
   defp load_tag_names do
@@ -192,6 +196,68 @@ defmodule Moulax.Imports do
         else
           {:error, changeset}
         end
+    end
+  end
+
+  defp upsert_transaction(attrs) do
+    case insert_transaction(attrs) do
+      {:ok, tx} ->
+        {:added, tx}
+
+      {:duplicate, _changeset} ->
+        replace_existing_transaction(attrs)
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  defp replace_existing_transaction(attrs) do
+    case find_duplicate_transaction(attrs) do
+      nil ->
+        {:ignored, :not_found}
+
+      %Transaction{import_id: nil} ->
+        # Legacy/manual rows are kept untouched.
+        {:ignored, :legacy_row}
+
+      %Transaction{import_id: import_id} when import_id == attrs.import_id ->
+        {:ignored, :same_import}
+
+      %Transaction{} = tx ->
+        tx
+        |> Transaction.changeset(%{
+          label: attrs.label,
+          currency: attrs.currency,
+          bank_reference: attrs.bank_reference,
+          source: attrs.source,
+          import_id: attrs.import_id
+        })
+        |> Repo.update()
+        |> case do
+          {:ok, updated_tx} -> {:updated, updated_tx}
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  defp find_duplicate_transaction(attrs) do
+    from(t in Transaction,
+      where:
+        t.account_id == ^attrs.account_id and
+          t.date == ^attrs.date and
+          t.amount == ^attrs.amount and
+          t.original_label == ^attrs.original_label
+    )
+    |> Repo.one()
+  end
+
+  defp sync_transaction_tags(transaction_id, tag_ids) do
+    from(tt in TransactionTag, where: tt.transaction_id == ^transaction_id)
+    |> Repo.delete_all()
+
+    if tag_ids != [] do
+      insert_transaction_tags(transaction_id, tag_ids)
     end
   end
 
