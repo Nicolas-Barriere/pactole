@@ -112,9 +112,26 @@ defmodule MoulaxWeb.TransactionControllerTest do
       a2 = insert_account()
       a3 = insert_account()
 
-      insert_transaction(%{account_id: a1.id, date: ~D[2026-02-01], label: "A", amount: Decimal.new("-1")})
-      insert_transaction(%{account_id: a2.id, date: ~D[2026-02-01], label: "B", amount: Decimal.new("-2")})
-      insert_transaction(%{account_id: a3.id, date: ~D[2026-02-01], label: "C", amount: Decimal.new("-3")})
+      insert_transaction(%{
+        account_id: a1.id,
+        date: ~D[2026-02-01],
+        label: "A",
+        amount: Decimal.new("-1")
+      })
+
+      insert_transaction(%{
+        account_id: a2.id,
+        date: ~D[2026-02-01],
+        label: "B",
+        amount: Decimal.new("-2")
+      })
+
+      insert_transaction(%{
+        account_id: a3.id,
+        date: ~D[2026-02-01],
+        label: "C",
+        amount: Decimal.new("-3")
+      })
 
       conn = get(conn, "/api/v1/transactions?account_ids=#{a1.id},#{a2.id}")
       body = json_response(conn, 200)
