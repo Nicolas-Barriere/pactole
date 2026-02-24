@@ -167,7 +167,9 @@ defmodule MoulaxWeb.TransactionController do
     |> maybe_set_original_label()
   end
 
-  defp maybe_set_original_label(%{"label" => label} = attrs), do: Map.put(attrs, "original_label", label)
+  defp maybe_set_original_label(%{"label" => label} = attrs),
+    do: Map.put(attrs, "original_label", label)
+
   defp maybe_set_original_label(attrs), do: attrs
 
   defp changeset_errors(changeset) do

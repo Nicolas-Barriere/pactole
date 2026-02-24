@@ -332,7 +332,9 @@ defmodule MoulaxWeb.TransactionControllerTest do
         })
 
       conn = delete(conn, ~p"/api/v1/transactions/#{tx.id}")
-      assert json_response(conn, 422)["errors"]["detail"] == "Only manual transactions can be deleted"
+
+      assert json_response(conn, 422)["errors"]["detail"] ==
+               "Only manual transactions can be deleted"
     end
   end
 end
