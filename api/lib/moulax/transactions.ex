@@ -20,8 +20,10 @@ defmodule Moulax.Transactions do
 
   Options (all optional):
   - `account_id` — filter by account UUID
+  - `account_ids` — filter by account UUIDs (CSV string or list)
   - `import_id` — filter by import UUID
   - `tag_id` — filter by tag UUID; use `"untagged"` to filter transactions with no tags
+  - `tag_ids` — filter by tag UUIDs (CSV string or list); supports `"untagged"` too
   - `date_from` — filter date >= (Date or ISO date string)
   - `date_to` — filter date <= (Date or ISO date string)
   - `search` — case-insensitive substring search on label
@@ -72,9 +74,14 @@ defmodule Moulax.Transactions do
   end
 
   defp apply_filter_account(query, opts) do
-    case opts["account_id"] || opts[:account_id] do
-      nil -> query
-      id -> where(query, [t], t.account_id == ^id)
+    account_ids =
+      opts
+      |> list_option("account_ids", :account_ids, "account_id", :account_id)
+      |> Enum.reject(&(&1 == ""))
+
+    case account_ids do
+      [] -> query
+      ids -> where(query, [t], t.account_id in ^ids)
     end
   end
 
@@ -86,22 +93,39 @@ defmodule Moulax.Transactions do
   end
 
   defp apply_filter_tag(query, opts) do
-    case opts["tag_id"] || opts[:tag_id] do
-      "untagged" ->
+    tag_filters =
+      opts
+      |> list_option("tag_ids", :tag_ids, "tag_id", :tag_id)
+      |> Enum.reject(&(&1 == ""))
+
+    include_untagged? = Enum.member?(tag_filters, "untagged")
+    tag_ids = Enum.reject(tag_filters, &(&1 == "untagged"))
+
+    case {include_untagged?, tag_ids} do
+      {false, []} ->
+        query
+
+      {true, []} ->
         from(t in query,
           left_join: tt in TransactionTag,
           on: tt.transaction_id == t.id,
           where: is_nil(tt.id)
         )
 
-      nil ->
-        query
-
-      id when is_binary(id) ->
+      {false, ids} ->
         from(t in query,
           join: tt in TransactionTag,
           on: tt.transaction_id == t.id,
-          where: tt.tag_id == ^id
+          where: tt.tag_id in ^ids,
+          distinct: true
+        )
+
+      {true, ids} ->
+        from(t in query,
+          left_join: tt in TransactionTag,
+          on: tt.transaction_id == t.id,
+          where: tt.tag_id in ^ids or is_nil(tt.id),
+          distinct: true
         )
     end
   end
@@ -343,4 +367,35 @@ defmodule Moulax.Transactions do
   end
 
   defp to_int(_, default), do: default
+
+  defp list_option(opts, plural_key, plural_atom, singular_key, singular_atom) do
+    cond do
+      is_list(opts[plural_key]) ->
+        opts[plural_key]
+
+      is_list(opts[plural_atom]) ->
+        opts[plural_atom]
+
+      is_binary(opts[plural_key]) ->
+        split_csv(opts[plural_key])
+
+      is_binary(opts[plural_atom]) ->
+        split_csv(opts[plural_atom])
+
+      is_binary(opts[singular_key]) ->
+        [opts[singular_key]]
+
+      is_binary(opts[singular_atom]) ->
+        [opts[singular_atom]]
+
+      true ->
+        []
+    end
+  end
+
+  defp split_csv(csv) do
+    csv
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+  end
 end

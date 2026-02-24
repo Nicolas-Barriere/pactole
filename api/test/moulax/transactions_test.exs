@@ -41,6 +41,21 @@ defmodule Moulax.TransactionsTest do
       assert hd(result.data).account_id == a1.id
     end
 
+    test "filters by account_ids" do
+      a1 = insert_account()
+      a2 = insert_account()
+      a3 = insert_account()
+      insert_transaction(%{account_id: a1.id, label: "A", amount: Decimal.new("-1")})
+      insert_transaction(%{account_id: a2.id, label: "B", amount: Decimal.new("-2")})
+      insert_transaction(%{account_id: a3.id, label: "C", amount: Decimal.new("-3")})
+
+      result = Transactions.list_transactions(%{"account_ids" => "#{a1.id},#{a2.id}"})
+      assert result.meta.total_count == 2
+
+      account_ids = Enum.map(result.data, & &1.account_id) |> Enum.sort()
+      assert account_ids == Enum.sort([a1.id, a2.id])
+    end
+
     test "filters by import_id" do
       account = insert_account()
       import_record = insert_import(%{account_id: account.id})
@@ -83,6 +98,60 @@ defmodule Moulax.TransactionsTest do
       result = Transactions.list_transactions(%{"tag_id" => tag.id})
       assert result.meta.total_count == 1
       assert hd(result.data).tags != []
+    end
+
+    test "filters by tag_ids" do
+      account = insert_account()
+      groceries = insert_tag()
+      transport = insert_tag()
+      leisure = insert_tag()
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Groceries",
+        amount: Decimal.new("-1"),
+        tag_ids: [groceries.id]
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Transport",
+        amount: Decimal.new("-2"),
+        tag_ids: [transport.id]
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Leisure",
+        amount: Decimal.new("-3"),
+        tag_ids: [leisure.id]
+      })
+
+      result = Transactions.list_transactions(%{"tag_ids" => "#{groceries.id},#{transport.id}"})
+      assert result.meta.total_count == 2
+
+      labels = Enum.map(result.data, & &1.label) |> Enum.sort()
+      assert labels == ["Groceries", "Transport"]
+    end
+
+    test "filters by tag_ids and untagged together" do
+      account = insert_account()
+      tag = insert_tag()
+
+      insert_transaction(%{
+        account_id: account.id,
+        label: "Tagged",
+        amount: Decimal.new("-1"),
+        tag_ids: [tag.id]
+      })
+
+      insert_transaction(%{account_id: account.id, label: "Untagged", amount: Decimal.new("-2")})
+
+      result = Transactions.list_transactions(%{"tag_ids" => "#{tag.id},untagged"})
+      assert result.meta.total_count == 2
+
+      labels = Enum.map(result.data, & &1.label) |> Enum.sort()
+      assert labels == ["Tagged", "Untagged"]
     end
 
     test "filters untagged with tag_id untagged" do

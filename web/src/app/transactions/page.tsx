@@ -10,28 +10,28 @@ const PER_PAGE = 50;
 async function TransactionsContent({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
 
-  const page = Number(params.page) || 1;
-  const search = params.search || "";
-  const accountFilter = params.account === "_all" ? "" : (params.account || "");
-  const importFilter = params.import || "";
-  const tagFilter = params.tag === "_all" ? "" : (params.tag || "");
-  const dateFrom = params.from || "";
-  const dateTo = params.to || "";
-  const sortBy = params.sort || "date";
-  const sortOrder = params.order || "desc";
+  const page = Number(singleParam(params.page)) || 1;
+  const search = singleParam(params.search);
+  const accountFilters = parseMultiParam(params.account);
+  const importFilter = singleParam(params.import);
+  const tagFilters = parseMultiParam(params.tag);
+  const dateFrom = singleParam(params.from);
+  const dateTo = singleParam(params.to);
+  const sortBy = singleParam(params.sort) || "date";
+  const sortOrder = singleParam(params.order) || "desc";
 
   /* Build query string for transactions */
   const q = new URLSearchParams();
   q.set("page", String(page));
   q.set("per_page", String(PER_PAGE));
   if (search) q.set("search", search);
-  if (accountFilter) q.set("account_id", accountFilter);
+  if (accountFilters.length > 0) q.set("account_ids", accountFilters.join(","));
   if (importFilter) q.set("import_id", importFilter);
-  if (tagFilter) q.set("tag_id", tagFilter);
+  if (tagFilters.length > 0) q.set("tag_ids", tagFilters.join(","));
   if (dateFrom) q.set("date_from", dateFrom);
   if (dateTo) q.set("date_to", dateTo);
   q.set("sort_by", sortBy);
@@ -64,9 +64,9 @@ async function TransactionsContent({
       searchParamsObj={{
         page,
         search,
-        accountFilter,
+        accountFilters,
         importFilter,
-        tagFilter,
+        tagFilters,
         dateFrom,
         dateTo,
         sortBy,
@@ -79,13 +79,27 @@ async function TransactionsContent({
 export default function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   return (
     <Suspense fallback={<TransactionsSkeleton />}>
       <TransactionsContent searchParams={searchParams} />
     </Suspense>
   );
+}
+
+function singleParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value.at(-1) ?? "";
+  return value ?? "";
+}
+
+function parseMultiParam(value: string | string[] | undefined): string[] {
+  const raw = singleParam(value);
+  if (!raw || raw === "_all") return [];
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 /* ── Loading Skeleton ────────────────────────────────── */

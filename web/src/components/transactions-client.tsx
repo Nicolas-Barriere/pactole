@@ -10,6 +10,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -90,17 +91,15 @@ interface TransactionsClientProps {
   searchParamsObj: {
     page: number;
     search: string;
-    accountFilter: string;
+    accountFilters: string[];
     importFilter: string;
-    tagFilter: string;
+    tagFilters: string[];
     dateFrom: string;
     dateTo: string;
     sortBy: string;
     sortOrder: string;
   };
 }
-
-const ALL_FILTER_VALUE = "__all__";
 
 /* ── Main Component ──────────────────────────────────── */
 
@@ -117,9 +116,9 @@ export function TransactionsClient({
 
   const {
     search,
-    accountFilter,
+    accountFilters,
     importFilter,
-    tagFilter,
+    tagFilters,
     dateFrom,
     dateTo,
     sortBy,
@@ -128,14 +127,8 @@ export function TransactionsClient({
 
   const transactions = initialData.data;
   const meta = initialData.meta;
-  const selectedAccountLabel = accountFilter
-    ? (accounts.find((a) => a.id === accountFilter)?.name ?? "Compte inconnu")
-    : "Tous les comptes";
-  const selectedTagLabel = tagFilter
-    ? tagFilter === "untagged"
-      ? "Non tagué"
-      : (tags.find((t) => t.id === tagFilter)?.name ?? "Tag inconnu")
-    : "Tous les tags";
+  const selectedAccountLabel = formatSelectedAccountsLabel(accountFilters, accounts);
+  const selectedTagLabel = formatSelectedTagsLabel(tagFilters, tags);
 
   /* Local state */
   const [searchInput, setSearchInput] = useState(search);
@@ -522,9 +515,9 @@ export function TransactionsClient({
   const startItem = (meta.page - 1) * meta.per_page + 1;
   const endItem = Math.min(meta.page * meta.per_page, meta.total_count);
   const hasFilters = !!(
-    accountFilter ||
+    accountFilters.length > 0 ||
     importFilter ||
-    tagFilter ||
+    tagFilters.length > 0 ||
     dateFrom ||
     dateTo ||
     search
@@ -565,50 +558,37 @@ export function TransactionsClient({
           />
         </div>
 
-        <Select
-          value={accountFilter || ALL_FILTER_VALUE}
-          onValueChange={(v) =>
+        <MultiFilterPopover
+          label={selectedAccountLabel}
+          options={accounts.map((account) => ({
+            id: account.id,
+            label: account.name,
+          }))}
+          selectedIds={accountFilters}
+          onToggle={(id) =>
             updateParams({
-              account: !v || v === ALL_FILTER_VALUE ? null : v,
+              account: toggleCsvSelection(accountFilters, id),
               page: null,
             })
           }
-        >
-          <SelectTrigger className="w-44 shadow-none">
-            <SelectValue>{selectedAccountLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_FILTER_VALUE}>Tous les comptes</SelectItem>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onClear={() => updateParams({ account: null, page: null })}
+        />
 
-        <Select
-          value={tagFilter || ALL_FILTER_VALUE}
-          onValueChange={(v) =>
+        <MultiFilterPopover
+          label={selectedTagLabel}
+          options={[
+            { id: "untagged", label: "Non tagué" },
+            ...tags.map((tag) => ({ id: tag.id, label: tag.name })),
+          ]}
+          selectedIds={tagFilters}
+          onToggle={(id) =>
             updateParams({
-              tag: !v || v === ALL_FILTER_VALUE ? null : v,
+              tag: toggleCsvSelection(tagFilters, id),
               page: null,
             })
           }
-        >
-          <SelectTrigger className="w-40 shadow-none">
-            <SelectValue>{selectedTagLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_FILTER_VALUE}>Tous les tags</SelectItem>
-            <SelectItem value="untagged">Non tagué</SelectItem>
-            {tags.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onClear={() => updateParams({ tag: null, page: null })}
+        />
 
         <DatePickerFilter
           value={dateFrom}
@@ -764,7 +744,7 @@ export function TransactionsClient({
         open={addOpen}
         accounts={accounts}
         tags={tags}
-        defaultAccountId={accountFilter}
+        defaultAccountId={accountFilters.length === 1 ? accountFilters[0] : undefined}
         loading={isPending}
         onSubmit={handleAddTransaction}
         onClose={() => setAddOpen(false)}
@@ -805,6 +785,82 @@ export function TransactionsClient({
         onCancel={() => setDeleteTx(null)}
       />
     </div>
+  );
+}
+
+function toggleCsvSelection(selectedIds: string[], id: string): string | null {
+  const next = selectedIds.includes(id)
+    ? selectedIds.filter((selectedId) => selectedId !== id)
+    : [...selectedIds, id];
+
+  if (next.length === 0) return null;
+  return next.join(",");
+}
+
+function formatSelectedAccountsLabel(selectedIds: string[], accounts: Account[]): string {
+  if (selectedIds.length === 0) return "Tous les comptes";
+  if (selectedIds.length === 1) {
+    return accounts.find((account) => account.id === selectedIds[0])?.name ?? "Compte inconnu";
+  }
+  return `${selectedIds.length} comptes`;
+}
+
+function formatSelectedTagsLabel(selectedIds: string[], tags: Tag[]): string {
+  if (selectedIds.length === 0) return "Tous les tags";
+  if (selectedIds.length === 1) {
+    if (selectedIds[0] === "untagged") return "Non tagué";
+    return tags.find((tag) => tag.id === selectedIds[0])?.name ?? "Tag inconnu";
+  }
+  return `${selectedIds.length} tags`;
+}
+
+function MultiFilterPopover({
+  label,
+  options,
+  selectedIds,
+  onToggle,
+  onClear,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger className="border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 min-w-44 items-center justify-between rounded-none border px-3 text-left text-sm transition-all outline-none focus-visible:ring-[3px]">
+        <span className="truncate">{label}</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-0" align="start">
+        <div className="max-h-64 overflow-y-auto py-1">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onToggle(option.id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+            >
+              <Checkbox checked={selectedIds.includes(option.id)} />
+              <span className="flex-1 truncate">{option.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-border p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-full justify-center"
+            disabled={selectedIds.length === 0}
+            onClick={onClear}
+          >
+            Réinitialiser
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
