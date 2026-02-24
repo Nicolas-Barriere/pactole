@@ -44,6 +44,34 @@ export async function updateTransactionTags(
   }
 }
 
+export async function updateManualTransaction(
+  txId: string,
+  data: { account_id: string; date: string; label: string; amount: string; tag_ids: string[] },
+): Promise<ActionResult> {
+  try {
+    await serverApi.put(`/transactions/${txId}`, data);
+    revalidatePath("/transactions");
+    revalidatePath(`/accounts/${data.account_id}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: extractError(err) };
+  }
+}
+
+export async function deleteManualTransaction(
+  txId: string,
+  accountId: string,
+): Promise<ActionResult> {
+  try {
+    await serverApi.delete(`/transactions/${txId}`);
+    revalidatePath("/transactions");
+    revalidatePath(`/accounts/${accountId}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: extractError(err) };
+  }
+}
+
 export async function bulkTagTransactions(
   transactionIds: string[],
   tagIds: string[],

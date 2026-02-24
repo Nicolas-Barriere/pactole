@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Account, Tag } from "@/types";
 import {
   Dialog,
@@ -33,6 +33,9 @@ interface TransactionFormProps {
   accounts: Account[];
   tags: Tag[];
   defaultAccountId?: string;
+  initialData?: Partial<TransactionFormData>;
+  title?: string;
+  submitLabel?: string;
   loading?: boolean;
   onSubmit: (data: TransactionFormData) => void;
   onClose: () => void;
@@ -47,16 +50,24 @@ export function TransactionForm({
   accounts,
   tags,
   defaultAccountId = "",
+  initialData,
+  title = "Nouvelle transaction",
+  submitLabel = "Ajouter",
   loading = false,
   onSubmit,
   onClose,
 }: TransactionFormProps) {
-  const [form, setForm] = useState<TransactionFormData>({
+  const buildInitialForm = (): TransactionFormData => ({
     date: todayISO(),
     label: "",
     amount: "",
     tag_ids: [],
     account_id: defaultAccountId,
+  });
+
+  const [form, setForm] = useState<TransactionFormData>({
+    ...buildInitialForm(),
+    ...initialData,
   });
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const selectedAccountLabel = form.account_id
@@ -88,11 +99,18 @@ export function TransactionForm({
     }));
   }
 
+  useEffect(() => {
+    if (!open) return;
+    setForm({ ...buildInitialForm(), ...initialData });
+    setErrors({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData, defaultAccountId]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouvelle transaction</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -211,7 +229,7 @@ export function TransactionForm({
               Annuler
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Enregistrement..." : "Ajouter"}
+              {loading ? "Enregistrement..." : submitLabel}
             </Button>
           </DialogFooter>
         </form>
