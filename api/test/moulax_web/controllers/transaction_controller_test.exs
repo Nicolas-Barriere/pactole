@@ -106,6 +106,45 @@ defmodule MoulaxWeb.TransactionControllerTest do
       assert body["meta"]["total_count"] == 1
       assert hd(body["data"])["import_id"] == import_record.id
     end
+
+    test "accepts account_ids csv query param", %{conn: conn} do
+      a1 = insert_account()
+      a2 = insert_account()
+      a3 = insert_account()
+
+      insert_transaction(%{account_id: a1.id, date: ~D[2026-02-01], label: "A", amount: Decimal.new("-1")})
+      insert_transaction(%{account_id: a2.id, date: ~D[2026-02-01], label: "B", amount: Decimal.new("-2")})
+      insert_transaction(%{account_id: a3.id, date: ~D[2026-02-01], label: "C", amount: Decimal.new("-3")})
+
+      conn = get(conn, "/api/v1/transactions?account_ids=#{a1.id},#{a2.id}")
+      body = json_response(conn, 200)
+      assert body["meta"]["total_count"] == 2
+    end
+
+    test "accepts tag_ids csv query param", %{conn: conn, account: account} do
+      groceries = insert_tag()
+      transport = insert_tag()
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Groceries",
+        amount: Decimal.new("-1"),
+        tag_ids: [groceries.id]
+      })
+
+      insert_transaction(%{
+        account_id: account.id,
+        date: ~D[2026-02-01],
+        label: "Transport",
+        amount: Decimal.new("-2"),
+        tag_ids: [transport.id]
+      })
+
+      conn = get(conn, "/api/v1/transactions?tag_ids=#{groceries.id},#{transport.id}")
+      body = json_response(conn, 200)
+      assert body["meta"]["total_count"] == 2
+    end
   end
 
   describe "show GET /api/v1/transactions/:id" do
