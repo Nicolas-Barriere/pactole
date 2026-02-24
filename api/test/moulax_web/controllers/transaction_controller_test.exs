@@ -184,15 +184,22 @@ defmodule MoulaxWeb.TransactionControllerTest do
         })
 
       tag = insert_tag()
+      other_account = insert_account()
 
       conn =
         put(conn, ~p"/api/v1/transactions/#{tx.id}", %{
+          "account_id" => other_account.id,
+          "date" => "2026-02-03",
           "label" => "Updated label",
+          "amount" => "-12.34",
           "tag_ids" => [tag.id]
         })
 
       data = json_response(conn, 200)
       assert data["label"] == "Updated label"
+      assert data["account_id"] == other_account.id
+      assert data["date"] == "2026-02-03"
+      assert data["amount"] == "-12.34"
       assert [%{"id" => tag_id}] = data["tags"]
       assert tag_id == tag.id
     end
@@ -217,6 +224,47 @@ defmodule MoulaxWeb.TransactionControllerTest do
         })
 
       assert json_response(conn, 422)["errors"] != %{}
+    end
+
+    test "blocks editing non-manual transaction fields", %{conn: conn, account: account} do
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Imported",
+          amount: Decimal.new("-10"),
+          source: "csv_import"
+        })
+
+      conn =
+        put(conn, ~p"/api/v1/transactions/#{tx.id}", %{
+          "label" => "Should fail"
+        })
+
+      assert json_response(conn, 422)["errors"]["detail"] ==
+               "Only manual transactions can be edited"
+    end
+
+    test "allows tag updates on non-manual transactions", %{conn: conn, account: account} do
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Imported",
+          amount: Decimal.new("-10"),
+          source: "csv_import"
+        })
+
+      tag = insert_tag()
+
+      conn =
+        put(conn, ~p"/api/v1/transactions/#{tx.id}", %{
+          "tag_ids" => [tag.id]
+        })
+
+      data = json_response(conn, 200)
+      assert [%{"id" => tag_id}] = data["tags"]
+      assert tag_id == tag.id
     end
   end
 
@@ -271,6 +319,22 @@ defmodule MoulaxWeb.TransactionControllerTest do
     test "returns 404 when not found", %{conn: conn} do
       conn = delete(conn, ~p"/api/v1/transactions/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)["errors"]["detail"] == "Not Found"
+    end
+
+    test "blocks deleting non-manual transaction", %{conn: conn, account: account} do
+      tx =
+        insert_transaction(%{
+          account_id: account.id,
+          date: ~D[2026-02-01],
+          label: "Imported",
+          amount: Decimal.new("-1"),
+          source: "csv_import"
+        })
+
+      conn = delete(conn, ~p"/api/v1/transactions/#{tx.id}")
+
+      assert json_response(conn, 422)["errors"]["detail"] ==
+               "Only manual transactions can be deleted"
     end
   end
 end

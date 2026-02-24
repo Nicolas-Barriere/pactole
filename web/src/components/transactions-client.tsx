@@ -17,6 +17,8 @@ import {
   X,
   PenLine,
   FileText,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   useReactTable,
@@ -58,7 +60,10 @@ import {
   updateTransactionTags,
   bulkTagTransactions,
   createTransaction,
+  updateManualTransaction,
+  deleteManualTransaction,
 } from "@/app/actions/transactions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { TransactionAmount } from "@/components/transaction-amount";
 import {
   CurrencyDisplayToggle,
@@ -138,6 +143,8 @@ export function TransactionsClient({
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [savedTxId, setSavedTxId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [bulkTagId, setBulkTagId] = useState("");
   const [bulkPending, startBulkTransition] = useTransition();
   const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
@@ -256,6 +263,43 @@ export function TransactionsClient({
       if (result.success) {
         toast.success("Transaction ajoutée");
         setAddOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleEditTransaction(data: TransactionFormData) {
+    if (!editTx) return;
+
+    startTransition(async () => {
+      const result = await updateManualTransaction(editTx.id, {
+        account_id: data.account_id,
+        date: data.date,
+        label: data.label,
+        amount: data.amount,
+        tag_ids: data.tag_ids,
+      });
+
+      if (result.success) {
+        toast.success("Transaction mise a jour");
+        setEditTx(null);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleDeleteTransaction() {
+    if (!deleteTx) return;
+
+    startTransition(async () => {
+      const result = await deleteManualTransaction(deleteTx.id, deleteTx.account_id);
+      if (result.success) {
+        toast.success("Transaction supprimee");
+        setDeleteTx(null);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -413,6 +457,41 @@ export function TransactionsClient({
           </Link>
         );
       },
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => {
+        const tx = row.original;
+
+        if (tx.source !== "manual") {
+          return <span className="text-muted-foreground/50">-</span>;
+        }
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setEditTx(tx)}
+              title="Modifier"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => setDeleteTx(tx)}
+              title="Supprimer"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+      enableSorting: false,
     },
   ];
 
@@ -689,6 +768,41 @@ export function TransactionsClient({
         loading={isPending}
         onSubmit={handleAddTransaction}
         onClose={() => setAddOpen(false)}
+      />
+
+      <TransactionForm
+        key={editTx ? `edit-${editTx.id}` : "edit-closed"}
+        open={Boolean(editTx)}
+        accounts={accounts}
+        tags={tags}
+        initialData={
+          editTx
+            ? {
+                date: editTx.date,
+                label: editTx.label,
+                amount: editTx.amount,
+                tag_ids: editTx.tags.map((tag) => tag.id),
+                account_id: editTx.account_id,
+              }
+            : undefined
+        }
+        title="Modifier la transaction"
+        submitLabel="Enregistrer"
+        loading={isPending}
+        onSubmit={handleEditTransaction}
+        onClose={() => setEditTx(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTx)}
+        title="Supprimer la transaction ?"
+        description="Cette action est definitive et ne peut pas etre annulee."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+        loading={isPending}
+        onConfirm={handleDeleteTransaction}
+        onCancel={() => setDeleteTx(null)}
       />
     </div>
   );

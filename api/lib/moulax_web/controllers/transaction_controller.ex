@@ -62,13 +62,14 @@ defmodule MoulaxWeb.TransactionController do
   end
 
   @doc """
-  PUT /api/v1/transactions/:id — Update transaction (label, tags, etc.).
+  PUT /api/v1/transactions/:id — Update transaction (manual fields + tags).
   """
   def update(conn, %{"id" => id} = params) do
     attrs = map_update_params(params)
     tag_ids = params["tag_ids"]
 
     with {:ok, transaction} <- Transactions.fetch_transaction(id),
+         :ok <- ensure_manual_editable(transaction, attrs),
          {:ok, _updated} <- Transactions.update_transaction(transaction, attrs),
          :ok <- maybe_set_tags(id, tag_ids) do
       {:ok, refreshed} = Transactions.get_transaction(id)
@@ -83,6 +84,11 @@ defmodule MoulaxWeb.TransactionController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{errors: %{tag_ids: ["contain invalid tag IDs"]}})
+
+      {:error, :manual_only} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{detail: "Only manual transactions can be edited"}})
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
@@ -106,12 +112,18 @@ defmodule MoulaxWeb.TransactionController do
   end
 
   @doc """
-  DELETE /api/v1/transactions/:id — Delete transaction.
+  DELETE /api/v1/transactions/:id — Delete manual transaction.
   """
   def delete(conn, %{"id" => id}) do
-    case Transactions.delete_transaction(id) do
-      {:ok, _transaction} ->
-        send_resp(conn, :no_content, "")
+    with {:ok, transaction} <- Transactions.fetch_transaction(id),
+         :ok <- ensure_manual_deletable(transaction),
+         {:ok, _transaction} <- Transactions.delete_transaction(transaction) do
+      send_resp(conn, :no_content, "")
+    else
+      {:error, :manual_only} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{detail: "Only manual transactions can be deleted"}})
 
       {:error, :not_found} ->
         conn
@@ -129,6 +141,13 @@ defmodule MoulaxWeb.TransactionController do
     end
   end
 
+  defp ensure_manual_editable(_transaction, attrs) when map_size(attrs) == 0, do: :ok
+  defp ensure_manual_editable(%{source: "manual"}, _attrs), do: :ok
+  defp ensure_manual_editable(_transaction, _attrs), do: {:error, :manual_only}
+
+  defp ensure_manual_deletable(%{source: "manual"}), do: :ok
+  defp ensure_manual_deletable(_transaction), do: {:error, :manual_only}
+
   defp map_create_params(params, account_id) do
     base =
       params
@@ -143,9 +162,15 @@ defmodule MoulaxWeb.TransactionController do
 
   defp map_update_params(params) do
     params
-    |> Map.take(~w(label))
+    |> Map.take(~w(account_id date label amount currency bank_reference))
     |> Map.reject(fn {_, v} -> v == nil end)
+    |> maybe_set_original_label()
   end
+
+  defp maybe_set_original_label(%{"label" => label} = attrs),
+    do: Map.put(attrs, "original_label", label)
+
+  defp maybe_set_original_label(attrs), do: attrs
 
   defp changeset_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
