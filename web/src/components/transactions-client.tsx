@@ -829,14 +829,9 @@ function MultiFilterPopover({
 }) {
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-9 min-w-44 justify-between rounded-none px-3 text-left shadow-none"
-        >
-          <span className="truncate">{label}</span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-        </Button>
+      <PopoverTrigger className="border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 min-w-44 items-center justify-between rounded-none border px-3 text-left text-sm transition-all outline-none focus-visible:ring-[3px]">
+        <span className="truncate">{label}</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent className="w-56 p-0" align="start">
         <div className="max-h-64 overflow-y-auto py-1">
