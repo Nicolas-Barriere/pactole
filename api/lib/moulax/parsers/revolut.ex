@@ -370,15 +370,16 @@ defmodule Moulax.Parsers.Revolut do
       |> normalize_text()
       |> String.trim()
 
-    normalized in @completed_states or header_token(normalized) in ["completed", "termine", "termin"]
+    normalized in @completed_states or
+      header_token(normalized) in ["completed", "termine", "termin"]
   end
 
   defp normalize_text(value) when is_binary(value) do
     value
     |> then(fn text ->
       Regex.replace(~r/_x([0-9A-Fa-f]{4})_/, text, fn _, hex ->
-      codepoint = String.to_integer(hex, 16)
-      if codepoint < 32, do: "", else: <<codepoint::utf8>>
+        codepoint = String.to_integer(hex, 16)
+        if codepoint < 32, do: "", else: <<codepoint::utf8>>
       end)
     end)
     |> String.replace("Ã©", "é")
