@@ -57,44 +57,27 @@ export function DashboardPageClient({
   topExpenses,
 }: DashboardPageClientProps) {
   const { baseCurrency, rates } = useCurrency();
-  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("native");
 
   const accountCurrencies = useMemo(
     () => Array.from(new Set(summary.accounts.map((account) => account.currency))),
     [summary.accounts],
   );
   const assumedCurrency = accountCurrencies[0] ?? baseCurrency;
-  const isSingleCurrency = accountCurrencies.length <= 1;
 
   const netWorthDisplay = useMemo(() => {
-    if (displayMode === "base") {
-      const total = summary.accounts.reduce((acc, account) => {
-        const converted = convertAmountValue(
-          account.balance,
-          account.currency,
-          baseCurrency,
-          rates,
-        );
-        const value = converted ?? (parseFloat(account.balance) || 0);
-        return acc + value;
-      }, 0);
-      return formatAmount(String(total), baseCurrency);
-    }
-
-    if (!isSingleCurrency) return null;
-    const total = summary.accounts.reduce(
-      (acc, account) => acc + (parseFloat(account.balance) || 0),
-      0,
-    );
-    return formatAmount(String(total), assumedCurrency);
-  }, [
-    displayMode,
-    summary.accounts,
-    baseCurrency,
-    rates,
-    isSingleCurrency,
-    assumedCurrency,
-  ]);
+    const total = summary.accounts.reduce((acc, account) => {
+      const converted = convertAmountValue(
+        account.balance,
+        account.currency,
+        baseCurrency,
+        rates,
+      );
+      const value = converted ?? (parseFloat(account.balance) || 0);
+      return acc + value;
+    }, 0);
+    return formatAmount(String(total), baseCurrency);
+  }, [summary.accounts, baseCurrency, rates]);
 
   const changeVsLastMonth = (() => {
     if (!trends || trends.months.length < 2) return null;
@@ -102,16 +85,13 @@ export function DashboardPageClient({
     if (!lastMonth) return null;
     const net = parseFloat(lastMonth.net);
     if (net === 0) return null;
-    if (displayMode === "base") {
-      const converted = convertAmountValue(
-        String(net),
-        assumedCurrency,
-        baseCurrency,
-        rates,
-      );
-      return formatAmount(String(converted ?? net), baseCurrency);
-    }
-    return formatAmount(String(net), assumedCurrency);
+    const converted = convertAmountValue(
+      String(net),
+      assumedCurrency,
+      baseCurrency,
+      rates,
+    );
+    return formatAmount(String(converted ?? net), baseCurrency);
   })();
 
   return (
@@ -141,11 +121,7 @@ export function DashboardPageClient({
           )}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {displayMode === "base"
-            ? `Affiché en ${baseCurrency}`
-            : isSingleCurrency
-              ? `Affiché en ${assumedCurrency}`
-              : "Mode natif indisponible en multi-devise"}
+          {`Affiché en ${baseCurrency}`}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           Estimation: les comptes crypto restent approximatifs.

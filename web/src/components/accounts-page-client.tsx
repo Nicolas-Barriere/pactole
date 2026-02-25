@@ -33,7 +33,7 @@ interface AccountsPageClientProps {
 }
 
 export function AccountsPageClient({ accounts, error }: AccountsPageClientProps) {
-  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("native");
 
   return (
     <div className="space-y-6">

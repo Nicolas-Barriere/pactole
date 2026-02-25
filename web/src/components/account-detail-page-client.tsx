@@ -71,7 +71,7 @@ export function AccountDetailPageClient({
   importsError = false,
 }: AccountDetailPageClientProps) {
   const router = useRouter();
-  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("native");
   const balance = parseFloat(account.balance);
 
   return (
