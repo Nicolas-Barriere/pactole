@@ -140,7 +140,7 @@ export function TransactionsClient({
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [bulkTagId, setBulkTagId] = useState("");
   const [bulkPending, startBulkTransition] = useTransition();
-  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("base");
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("native");
   const selectedBulkTagLabel = bulkTagId
     ? bulkTagId === "untagged"
       ? "Aucun tag"
