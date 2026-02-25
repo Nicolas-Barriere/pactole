@@ -60,7 +60,12 @@ defmodule MoulaxWeb.ImportController do
     with {:ok, {_filename, content}} <- extract_file(params) do
       case Moulax.Parsers.detect_parser(content) do
         {:ok, parser} ->
-          json(conn, %{data: %{detected_bank: parser.bank()}})
+          json(conn, %{
+            data: %{
+              detected_bank: parser.bank(),
+              detected_currency: detect_currency(parser, content)
+            }
+          })
 
         :error ->
           conn
@@ -105,6 +110,44 @@ defmodule MoulaxWeb.ImportController do
   end
 
   defp extract_file(_), do: {:error, :no_file}
+
+  defp detect_currency(parser, content) do
+    case parser.parse(content) do
+      {:ok, rows} ->
+        rows
+        |> Enum.reduce({%{}, %{}, 0}, fn row, {counts, first_seen, next_index} ->
+          case row[:currency] do
+            currency when is_binary(currency) and currency != "" ->
+              counts = Map.update(counts, currency, 1, &(&1 + 1))
+              {first_seen, next_index} = remember_first_seen(first_seen, currency, next_index)
+              {counts, first_seen, next_index}
+
+            _ ->
+              {counts, first_seen, next_index}
+          end
+        end)
+        |> dominant_currency()
+
+      {:error, _errors} ->
+        nil
+    end
+  end
+
+  defp remember_first_seen(first_seen, currency, next_index) do
+    if Map.has_key?(first_seen, currency) do
+      {first_seen, next_index}
+    else
+      {Map.put(first_seen, currency, next_index), next_index + 1}
+    end
+  end
+
+  defp dominant_currency({counts, _first_seen, _next_index}) when map_size(counts) == 0, do: nil
+
+  defp dominant_currency({counts, first_seen, _next_index}) do
+    counts
+    |> Enum.max_by(fn {currency, count} -> {count, -Map.get(first_seen, currency, 0)} end)
+    |> elem(0)
+  end
 
   defp changeset_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->

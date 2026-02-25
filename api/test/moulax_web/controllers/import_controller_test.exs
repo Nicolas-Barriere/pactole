@@ -187,6 +187,7 @@ defmodule MoulaxWeb.ImportControllerTest do
       data = json_response(conn, 200)
 
       assert data["data"]["detected_bank"] == "boursorama"
+      assert data["data"]["detected_currency"] == "EUR"
     end
 
     test "detects Revolut bank from CSV file", %{conn: conn} do
@@ -202,6 +203,7 @@ defmodule MoulaxWeb.ImportControllerTest do
       data = json_response(conn, 200)
 
       assert data["data"]["detected_bank"] == "revolut"
+      assert data["data"]["detected_currency"] == "EUR"
     end
 
     test "detects Revolut bank from XLSX file", %{conn: conn} do
@@ -218,6 +220,7 @@ defmodule MoulaxWeb.ImportControllerTest do
       data = json_response(conn, 200)
 
       assert data["data"]["detected_bank"] == "revolut"
+      assert data["data"]["detected_currency"] == "EUR"
     end
 
     test "detects Caisse d'Epargne bank from CSV file", %{conn: conn} do
@@ -233,6 +236,7 @@ defmodule MoulaxWeb.ImportControllerTest do
       data = json_response(conn, 200)
 
       assert data["data"]["detected_bank"] == "caisse_depargne"
+      assert data["data"]["detected_currency"] == "EUR"
     end
 
     test "returns 422 for unknown CSV format", %{conn: conn} do

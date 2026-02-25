@@ -25,6 +25,7 @@ import {
 import { createAccount } from "@/app/actions/accounts";
 import type {
   Account,
+  CurrencyCode,
   Import,
   ImportOutcomes,
   ImportRowDetail,
@@ -104,6 +105,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [detectedBank, setDetectedBank] = useState<string | null>(null);
+  const [detectedCurrency, setDetectedCurrency] = useState<CurrencyCode | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [importResult, setImportResult] = useState<Import | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -209,17 +211,23 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
 
     setFile(selected);
     setImportError(null);
+    setDetectedBank(null);
+    setDetectedCurrency(null);
     setDetecting(true);
 
     try {
       const formData = new FormData();
       formData.append("file", selected);
-      const res = await api.upload<{ data: { detected_bank: string } }>(
+      const res = await api.upload<{
+        data: { detected_bank: string; detected_currency?: string | null };
+      }>(
         "/imports/detect",
         formData,
       );
       const bank = res.data.detected_bank;
+      const currency = res.data.detected_currency;
       setDetectedBank(bank);
+      setDetectedCurrency(typeof currency === "string" ? (currency as CurrencyCode) : null);
 
       const matching = availableAccounts.filter((a) => a.bank === bank);
 
@@ -345,6 +353,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
     setImportResult(null);
     setImportError(null);
     setDetectedBank(null);
+    setDetectedCurrency(null);
     setStep("upload");
     requestAnimationFrame(scrollToImportTop);
     setTimeout(scrollToImportTop, 60);
@@ -639,6 +648,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
                 setStep("upload");
                 setFile(null);
                 setDetectedBank(null);
+                setDetectedCurrency(null);
               }}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
@@ -744,10 +754,11 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
       </section>
 
       <AccountForm
-        key={`import-create-${createAccountOpen ? "open" : "closed"}-${detectedBank ?? "none"}`}
+        key={`import-create-${createAccountOpen ? "open" : "closed"}-${detectedBank ?? "none"}-${detectedCurrency ?? "none"}`}
         open={createAccountOpen}
         loading={creatingAccount}
         initialBank={detectedBank ?? undefined}
+        initialCurrency={detectedCurrency ?? undefined}
         onSubmit={handleCreateAccount}
         onClose={() => setCreateAccountOpen(false)}
       />
