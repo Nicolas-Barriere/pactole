@@ -1,6 +1,8 @@
 defmodule MoulaxWeb.ImportControllerTest do
   use MoulaxWeb.ConnCase, async: true
 
+  alias Moulax.TestXlsx
+
   setup do
     %{account: insert_account(%{name: "Test", bank: "boursorama", type: "checking"})}
   end
@@ -41,6 +43,24 @@ defmodule MoulaxWeb.ImportControllerTest do
 
       assert data["status"] == "completed"
       assert data["rows_imported"] > 0
+    end
+
+    test "imports a valid Revolut XLSX file", %{conn: conn, account: account} do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_controller_create")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      upload = %Plug.Upload{
+        path: xlsx_path,
+        filename: "revolut.xlsx",
+        content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }
+
+      conn = post(conn, ~p"/api/v1/accounts/#{account.id}/imports", %{"file" => upload})
+      data = json_response(conn, 201)
+
+      assert data["status"] == "completed"
+      assert data["rows_imported"] == 2
+      assert data["filename"] == "revolut.xlsx"
     end
 
     test "imports a valid Caisse d'Épargne CSV file", %{conn: conn, account: account} do
@@ -176,6 +196,22 @@ defmodule MoulaxWeb.ImportControllerTest do
         path: csv_path,
         filename: "revolut.csv",
         content_type: "text/csv"
+      }
+
+      conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})
+      data = json_response(conn, 200)
+
+      assert data["data"]["detected_bank"] == "revolut"
+    end
+
+    test "detects Revolut bank from XLSX file", %{conn: conn} do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_controller_detect")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      upload = %Plug.Upload{
+        path: xlsx_path,
+        filename: "revolut.xlsx",
+        content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       }
 
       conn = post(conn, ~p"/api/v1/imports/detect", %{"file" => upload})

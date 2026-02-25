@@ -82,7 +82,7 @@ function fallbackOutcomes(imp: Import): ImportOutcomes {
 
 /* ── Types ───────────────────────────────────────────── */
 
-// Step 1: upload CSV + detect bank (auto-routes when 1 match)
+// Step 1: upload file + detect bank (auto-routes when 1 match)
 // Step 2: account selection (only shown when multiple accounts match)
 // Step 3: results
 type Step = "upload" | "account" | "results";
@@ -195,8 +195,11 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
 
   async function detectBankAndRoute(selected: File | undefined) {
     if (!selected) return;
-    if (!selected.name.toLowerCase().endsWith(".csv")) {
-      toast.error("Seuls les fichiers .csv sont acceptés");
+    const lowerName = selected.name.toLowerCase();
+    const isAcceptedFile = lowerName.endsWith(".csv") || lowerName.endsWith(".xlsx");
+
+    if (!isAcceptedFile) {
+      toast.error("Seuls les fichiers .csv et .xlsx sont acceptés");
       return;
     }
     if (selected.size === 0) {
@@ -235,7 +238,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
     } catch (err) {
       setFile(null);
       if (err instanceof ApiError && err.status === 422) {
-        toast.error("Format CSV non reconnu ou banque non supportée");
+        toast.error("Format de fichier non reconnu ou banque non supportée");
       } else {
         toast.error("Erreur de connexion");
       }
@@ -428,7 +431,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx"
               className="hidden"
               onChange={(e) => detectBankAndRoute(e.target.files?.[0])}
             />
@@ -497,7 +500,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
                   />
                 </svg>
                 <p className="text-sm font-medium">
-                  Glissez-déposez votre fichier CSV ici
+                  Glissez-déposez votre fichier CSV/XLSX ici
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   ou{" "}
@@ -664,7 +667,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
 
       <section className="space-y-3 border-t border-border pt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Historique global des imports CSV</h2>
+          <h2 className="text-lg font-semibold">Historique global des imports</h2>
           {timelineLoading && timelineItems.length === 0 && (
             <span className="text-xs text-muted-foreground">Chargement…</span>
           )}

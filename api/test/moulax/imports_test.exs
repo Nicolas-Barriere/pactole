@@ -3,6 +3,7 @@ defmodule Moulax.ImportsTest do
 
   alias Moulax.Imports
   alias Moulax.Imports.Import
+  alias Moulax.TestXlsx
   alias Moulax.Transactions.Transaction
   alias Moulax.Tags.TransactionTag
 
@@ -221,6 +222,20 @@ defmodule Moulax.ImportsTest do
       assert {:ok, result2} = Imports.process_import(import2, csv)
       assert result2.rows_skipped == 0
       assert result2.rows_imported == first_import_count
+    end
+
+    test "imports valid Revolut XLSX", %{account: account} do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_import")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      xlsx = File.read!(xlsx_path)
+      {:ok, import_record} = Imports.create_import(account.id, "revolut.xlsx")
+
+      assert {:ok, result} = Imports.process_import(import_record, xlsx)
+
+      assert result.status == "completed"
+      assert result.rows_imported == 2
+      assert result.rows_errored == 0
     end
   end
 

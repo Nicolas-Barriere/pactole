@@ -1,10 +1,9 @@
 defmodule Moulax.Parsers.Revolut do
   @moduledoc """
-  CSV parser for Revolut exports.
+  Parser for Revolut CSV and XLSX exports.
 
-  Expected format: comma-separated with headers including
-  `Type`, `Product`, `Started Date`, `Completed Date`, `Description`,
-  `Amount`, `Fee`, `Currency`, `State`, `Balance`.
+  Expected format: headers including `Type`, `Product`, `Started Date`,
+  `Completed Date`, `Description`, `Amount`, `Fee`, `Currency`, `State`, `Balance`.
 
   Supports both English and French (fr-fr) localized exports.
   Only completed rows (State = "COMPLETED" or État = "TERMINÉ") are imported.
@@ -14,6 +13,7 @@ defmodule Moulax.Parsers.Revolut do
   @behaviour Moulax.Parsers.Parser
 
   alias Moulax.Parsers.ParseError
+  alias Moulax.Parsers.Xlsx
 
   @canonical_headers [
     "Type",
@@ -46,6 +46,23 @@ defmodule Moulax.Parsers.Revolut do
 
   @impl true
   def detect?(content) when is_binary(content) do
+    if Xlsx.xlsx?(content) do
+      detect_xlsx(content)
+    else
+      detect_csv(content)
+    end
+  end
+
+  @impl true
+  def parse(content) when is_binary(content) do
+    if Xlsx.xlsx?(content) do
+      parse_xlsx(content)
+    else
+      parse_csv(content)
+    end
+  end
+
+  defp detect_csv(content) do
     case first_line(content) do
       nil ->
         false
@@ -60,35 +77,58 @@ defmodule Moulax.Parsers.Revolut do
     end
   end
 
-  @impl true
-  def parse(content) when is_binary(content) do
+  defp detect_xlsx(content) do
+    case Xlsx.rows(content) do
+      {:ok, [header | _rows]} ->
+        headers = Enum.map(header, &normalize_header/1)
+        Enum.all?(@canonical_headers, &(&1 in headers))
+
+      _ ->
+        false
+    end
+  end
+
+  defp parse_csv(content) do
     content = normalize_encoding(content)
 
     case String.split(content, ~r/\r?\n/, trim: true) do
       [] ->
         {:error, [%ParseError{row: 0, message: "empty file"}]}
 
-      [_header_only] ->
-        {:ok, []}
-
       [header | rows] ->
-        headers = split_row(header)
-        col_map = column_index_map(headers)
+        parse_rows_with_header(split_row(header), rows, &split_row/1)
+    end
+  end
 
-        case validate_headers(col_map) do
-          :ok ->
-            {transactions, errors} = parse_rows(rows, col_map)
+  defp parse_xlsx(content) do
+    case Xlsx.rows(content) do
+      {:ok, []} ->
+        {:error, [%ParseError{row: 0, message: "empty file"}]}
 
-            if errors == [] do
-              {:ok, transactions}
-            else
-              {:error, errors}
-            end
+      {:ok, [header | rows]} ->
+        parse_rows_with_header(header, rows, &normalize_xlsx_row/1)
 
-          {:error, missing} ->
-            message = "missing required columns: #{Enum.join(missing, ", ")}"
-            {:error, [%ParseError{row: 0, message: message}]}
+      :error ->
+        {:error, [%ParseError{row: 0, message: "empty file"}]}
+    end
+  end
+
+  defp parse_rows_with_header(headers, rows, row_to_fields) do
+    col_map = column_index_map(headers)
+
+    case validate_headers(col_map) do
+      :ok ->
+        {transactions, errors} = parse_rows(rows, col_map, row_to_fields)
+
+        if errors == [] do
+          {:ok, transactions}
+        else
+          {:error, errors}
         end
+
+      {:error, missing} ->
+        message = "missing required columns: #{Enum.join(missing, ", ")}"
+        {:error, [%ParseError{row: 0, message: message}]}
     end
   end
 
@@ -101,8 +141,36 @@ defmodule Moulax.Parsers.Revolut do
   defp split_row(line), do: String.split(line, ",")
 
   defp normalize_header(header) do
-    trimmed = String.trim(header)
-    Map.get(@fr_to_en, trimmed, trimmed)
+    trimmed =
+      header
+      |> normalize_text()
+      |> String.trim()
+
+    mapped =
+      case header_token(trimmed) do
+        "type" -> "Type"
+        "product" -> "Product"
+        "produit" -> "Product"
+        "starteddate" -> "Started Date"
+        "datededebut" -> "Started Date"
+        "completeddate" -> "Completed Date"
+        "datedefin" -> "Completed Date"
+        "description" -> "Description"
+        "amount" -> "Amount"
+        "montant" -> "Amount"
+        "fee" -> "Fee"
+        "frais" -> "Fee"
+        "currency" -> "Currency"
+        "devise" -> "Currency"
+        "state" -> "State"
+        "etat" -> "State"
+        "tat" -> "State"
+        "balance" -> "Balance"
+        "solde" -> "Balance"
+        _ -> trimmed
+      end
+
+    Map.get(@fr_to_en, mapped, mapped)
   end
 
   defp column_index_map(headers) do
@@ -118,29 +186,44 @@ defmodule Moulax.Parsers.Revolut do
     if missing == [], do: :ok, else: {:error, missing}
   end
 
-  defp parse_rows(rows, col_map) do
+  defp parse_rows(rows, col_map, row_to_fields) do
     rows
     |> Enum.with_index(1)
-    |> Enum.reject(fn {row, _idx} -> String.trim(row) == "" end)
     |> Enum.reduce({[], []}, fn {row, idx}, {txns, errs} ->
-      fields = split_row(row)
+      fields = row_to_fields.(row)
 
-      case field_at(fields, col_map, "State") do
-        state when state in [nil, ""] ->
-          {txns, errs}
-
-        state ->
-          if String.trim(state) in @completed_states do
-            case parse_row(fields, col_map, idx) do
-              {:ok, new_txns} -> {new_txns ++ txns, errs}
-              {:error, error} -> {txns, [error | errs]}
-            end
-          else
+      if row_empty?(fields) do
+        {txns, errs}
+      else
+        case field_at(fields, col_map, "State") do
+          state when state in [nil, ""] ->
             {txns, errs}
-          end
+
+          state ->
+            if completed_state?(state) do
+              case parse_row(fields, col_map, idx) do
+                {:ok, new_txns} -> {new_txns ++ txns, errs}
+                {:error, error} -> {txns, [error | errs]}
+              end
+            else
+              {txns, errs}
+            end
+        end
       end
     end)
     |> then(fn {txns, errs} -> {Enum.reverse(txns), Enum.reverse(errs)} end)
+  end
+
+  defp normalize_xlsx_row(fields) when is_list(fields) do
+    Enum.map(fields, fn
+      nil -> ""
+      value when is_binary(value) -> value
+      value -> to_string(value)
+    end)
+  end
+
+  defp row_empty?(fields) do
+    Enum.all?(fields, &(String.trim(&1) == ""))
   end
 
   defp parse_row(fields, col_map, row_idx) do
@@ -187,7 +270,10 @@ defmodule Moulax.Parsers.Revolut do
     do: {:error, %ParseError{row: row_idx, message: "missing date"}}
 
   defp parse_date(date_str, row_idx) do
-    trimmed = String.trim(date_str)
+    trimmed =
+      date_str
+      |> normalize_text()
+      |> String.trim()
 
     date_part =
       case String.split(trimmed, " ", parts: 2) do
@@ -197,7 +283,7 @@ defmodule Moulax.Parsers.Revolut do
 
     case Date.from_iso8601(date_part) do
       {:ok, date} -> {:ok, date}
-      {:error, _} -> {:error, %ParseError{row: row_idx, message: "invalid date: #{date_str}"}}
+      {:error, _} -> parse_excel_date(trimmed, row_idx, date_str)
     end
   end
 
@@ -265,5 +351,65 @@ defmodule Moulax.Parsers.Revolut do
       |> Enum.map(fn byte -> <<byte::utf8>> end)
       |> IO.iodata_to_binary()
     end
+  end
+
+  defp parse_excel_date(value, row_idx, original) do
+    case Float.parse(value) do
+      {serial, ""} ->
+        days = trunc(serial)
+        {:ok, Date.add(~D[1899-12-30], days)}
+
+      _ ->
+        {:error, %ParseError{row: row_idx, message: "invalid date: #{original}"}}
+    end
+  end
+
+  defp completed_state?(state) do
+    normalized =
+      state
+      |> normalize_text()
+      |> String.trim()
+
+    normalized in @completed_states or
+      header_token(normalized) in ["completed", "termine", "termin"]
+  end
+
+  defp normalize_text(value) when is_binary(value) do
+    value
+    |> then(fn text ->
+      Regex.replace(~r/_x([0-9A-Fa-f]{4})_/, text, fn _, hex ->
+        codepoint = String.to_integer(hex, 16)
+        if codepoint < 32, do: "", else: <<codepoint::utf8>>
+      end)
+    end)
+    |> String.replace("Ã©", "é")
+    |> String.replace("Ã¨", "è")
+    |> String.replace("Ãª", "ê")
+    |> String.replace("Ã«", "ë")
+    |> String.replace("Ã ", "à")
+    |> String.replace("Ã¢", "â")
+    |> String.replace("Ã¹", "ù")
+    |> String.replace("Ã»", "û")
+    |> String.replace("Ã§", "ç")
+    |> String.replace("Ã‰", "É")
+    |> String.replace("Â", "")
+  end
+
+  defp header_token(value) do
+    value
+    |> String.downcase()
+    |> String.replace("é", "e")
+    |> String.replace("è", "e")
+    |> String.replace("ê", "e")
+    |> String.replace("ë", "e")
+    |> String.replace("à", "a")
+    |> String.replace("â", "a")
+    |> String.replace("ù", "u")
+    |> String.replace("û", "u")
+    |> String.replace("î", "i")
+    |> String.replace("ï", "i")
+    |> String.replace("ô", "o")
+    |> String.replace("ç", "c")
+    |> String.replace(~r/[^a-z0-9]/u, "")
   end
 end
