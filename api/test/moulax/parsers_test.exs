@@ -2,6 +2,7 @@ defmodule Moulax.ParsersTest do
   use ExUnit.Case, async: true
 
   alias Moulax.Parsers
+  alias Moulax.TestXlsx
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
 
@@ -37,6 +38,16 @@ defmodule Moulax.ParsersTest do
     test "detects Revolut parser for French-locale export" do
       assert {:ok, Moulax.Parsers.Revolut} =
                Parsers.detect_parser(fixture("revolut_fr_valid.csv"))
+    end
+
+    test "detects Revolut parser for XLSX export" do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_detect")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      assert {:ok, Moulax.Parsers.Revolut} =
+               xlsx_path
+               |> File.read!()
+               |> Parsers.detect_parser()
     end
 
     test "detects Caisse d'Épargne parser" do

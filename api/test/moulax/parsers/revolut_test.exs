@@ -3,8 +3,10 @@ defmodule Moulax.Parsers.RevolutTest do
 
   alias Moulax.Parsers.Revolut
   alias Moulax.Parsers.ParseError
+  alias Moulax.TestXlsx
 
   @fixtures_path Path.expand("../../fixtures", __DIR__)
+  @examples_path Path.expand("../../../../examples", __DIR__)
 
   defp fixture(name), do: File.read!(Path.join(@fixtures_path, name))
 
@@ -27,6 +29,15 @@ defmodule Moulax.Parsers.RevolutTest do
 
     test "returns false for random text" do
       refute Revolut.detect?("hello,world\nfoo,bar")
+    end
+
+    test "returns true for Revolut XLSX" do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_parser")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      assert xlsx_path
+             |> File.read!()
+             |> Revolut.detect?()
     end
   end
 
@@ -256,6 +267,39 @@ defmodule Moulax.Parsers.RevolutTest do
 
       assert {:ok, [txn]} = Revolut.parse(latin1)
       assert txn.label =~ "CAF"
+    end
+
+    test "parses a valid Revolut XLSX" do
+      xlsx_path = TestXlsx.write_tmp_xlsx!(TestXlsx.revolut_rows(), "revolut_parse")
+      on_exit(fn -> File.rm(xlsx_path) end)
+
+      assert {:ok, transactions} =
+               xlsx_path
+               |> File.read!()
+               |> Revolut.parse()
+
+      assert length(transactions) == 2
+
+      [first | _] = transactions
+      assert first.date == ~D[2026-02-10]
+      assert first.label == "Uber"
+      assert first.amount == Decimal.new("-12.50")
+      assert first.currency == "EUR"
+    end
+
+    test "parses real Revolut XLSX export with mojibake headers and Excel dates" do
+      xlsx =
+        File.read!(
+          Path.join(
+            @examples_path,
+            "account-statement_2025-06-19_2026-02-23_fr-fr_7d5bef.xlsx"
+          )
+        )
+
+      assert {:ok, transactions} = Revolut.parse(xlsx)
+      assert length(transactions) > 10
+      assert Enum.any?(transactions, &(&1.date == ~D[2025-06-19]))
+      assert Enum.any?(transactions, &(&1.label =~ "The Gym Group"))
     end
   end
 
