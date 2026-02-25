@@ -56,13 +56,18 @@ interface AccountFormProps {
   loading?: boolean;
   asModal?: boolean;
   initialBank?: string;
+  initialCurrency?: CurrencyCode;
   onSubmit: (data: AccountFormData) => void;
   onClose?: () => void;
 }
 
 /* ── Component ───────────────────────────────────────── */
 
-function initialFormData(account?: Account | null, initialBank?: string): AccountFormData {
+function initialFormData(
+  account?: Account | null,
+  initialBank?: string,
+  initialCurrency?: CurrencyCode,
+): AccountFormData {
   if (account) {
     return {
       name: account.name,
@@ -72,7 +77,16 @@ function initialFormData(account?: Account | null, initialBank?: string): Accoun
       currency: CURRENCIES.includes(account.currency) ? account.currency : "EUR",
     };
   }
-  return { name: "", bank: initialBank || "", type: "checking", initial_balance: "0", currency: "EUR" };
+  return {
+    name: "",
+    bank: initialBank || "",
+    type: "checking",
+    initial_balance: "0",
+    currency:
+      initialCurrency && CURRENCIES.includes(initialCurrency)
+        ? initialCurrency
+        : "EUR",
+  };
 }
 
 export function AccountForm({
@@ -80,11 +94,12 @@ export function AccountForm({
   account,
   loading = false,
   initialBank,
+  initialCurrency,
   onSubmit,
   onClose,
 }: AccountFormProps) {
   const [form, setForm] = useState<AccountFormData>(() =>
-    initialFormData(account, initialBank),
+    initialFormData(account, initialBank, initialCurrency),
   );
   const [errors, setErrors] = useState<
     Partial<Record<keyof AccountFormData, string>>
